@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<title>OAMS — Calendar</title>
+<script src="282d529a-4abb-43a3-b3d4-a8aed61d2174"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>/* vietnamese */
+@font-face {
+  font-family: 'Fraunces';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("7528989b-f5d0-4c16-a350-1564d44093d9") format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'Fraunces';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("59a72213-7317-4ae9-90df-fd3858fdeff7") format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'Fraunces';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("41ed5eb4-e4f3-47c0-9985-acc6a5b11b93") format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* cyrillic-ext */
+@font-face {
+  font-family: 'IBM Plex Sans';
+  font-style: normal;
+  font-weight: 400;
+  font-stretch: 100%;
+  font-display: swap;
+  src: url("17ac9e42-e59c-4ad1-a84c-29daf5a99545") format('woff2');
+  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
+}
+/* cyrillic */
+@font-face {
+  font-family: 'IBM Plex Sans';
+  font-style: normal;
+  font-weight: 400;
+  font-stretch: 100%;
+  font-display: swap;
+  src: url("9bbaa250-20e7-4fa1-ac4b-4858fddf86b4") format('woff2');
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+/* greek */
+@font-face {
+  font-family: 'IBM Plex Sans';
+  font-style: normal;
+  font-weight: 400;
+  font-stretch: 100%;
+  font-display: swap;
+  src: url("49464ee2-629e-4795-a28c-95122c566c0e") format('woff2');
+  unicode-range: U+0370-0377, U+037A-037F, U+0384-038A, U+038C, U+038E-03A1, U+03A3-03FF;
+}
+/* vietnamese */
+@font-face {
+  font-family: 'IBM Plex Sans';
+  font-style: normal;
+  font-weight: 400;
+  font-stretch: 100%;
+  font-display: swap;
+  src: url("79bd7e28-d5af-49e4-a952-24beb798cfcd") format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'IBM Plex Sans';
+  font-style: normal;
+  font-weight: 400;
+  font-stretch: 100%;
+  font-display: swap;
+  src: url("d1e82fc4-4cbc-4396-ab72-51f2a2696626") format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'IBM Plex Sans';
+  font-style: normal;
+  font-weight: 400;
+  font-stretch: 100%;
+  font-display: swap;
+  src: url("04380b39-3634-422d-a2b1-234f06ef2791") format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* cyrillic-ext */
+@font-face {
+  font-family: 'IBM Plex Sans';
+  font-style: normal;
+  font-weight: 500;
+  font-stretch: 100%;
+  font-display: swap;
+  src: url("17ac9e42-e59c-4ad1-a84c-29daf5a99545") format('woff2');
+  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
+}
+/* cyrillic */
+@font-face {
+  font-family: 'IBM Plex Sans';
+  font-style: normal;
+  font-weight: 500;
+  font-stretch: 100%;
+  font-display: swap;
+  src: url("9bbaa250-20e7-4fa1-ac4b-4858fddf86b4") format('woff2');
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+/* greek */
+@font-face {
+  font-family: 'IBM Plex Sans';
+  font-style: normal;
+  font-weight: 500;
+  font-stretch: 100%;
+  font-display: swap;
+  src: url("49464ee2-629e-4795-a28c-95122c566c0e") format('woff2');
+  unicode-range: U+0370-0377, U+037A-037F, U+0384-038A, U+038C, U+038E-03A1, U+03A3-03FF;
+}
+/* vietnamese */
+@font-face {
+  font-family: 'IBM Plex Sans';
+  font-style: normal;
+  font-weight: 500;
+  font-stretch: 100%;
+  font-display: swap;
+  src: url("79bd7e28-d5af-49e4-a952-24beb798cfcd") format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'IBM Plex Sans';
+  font-style: normal;
+  font-weight: 500;
+  font-stretch: 100%;
+  font-display: swap;
+  src: url("d1e82fc4-4cbc-4396-ab72-51f2a2696626") format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'IBM Plex Sans';
+  font-style: normal;
+  font-weight: 500;
+  font-stretch: 100%;
+  font-display: swap;
+  src: url("04380b39-3634-422d-a2b1-234f06ef2791") format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* cyrillic-ext */
+@font-face {
+  font-family: 'IBM Plex Sans';
+  font-style: normal;
+  font-weight: 600;
+  font-stretch: 100%;
+  font-display: swap;
+  src: url("17ac9e42-e59c-4ad1-a84c-29daf5a99545") format('woff2');
+  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
+}
+/* cyrillic */
+@font-face {
+  font-family: 'IBM Plex Sans';
+  font-style: normal;
+  font-weight: 600;
+  font-stretch: 100%;
+  font-display: swap;
+  src: url("9bbaa250-20e7-4fa1-ac4b-4858fddf86b4") format('woff2');
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+/* greek */
+@font-face {
+  font-family: 'IBM Plex Sans';
+  font-style: normal;
+  font-weight: 600;
+  font-stretch: 100%;
+  font-display: swap;
+  src: url("49464ee2-629e-4795-a28c-95122c566c0e") format('woff2');
+  unicode-range: U+0370-0377, U+037A-037F, U+0384-038A, U+038C, U+038E-03A1, U+03A3-03FF;
+}
+/* vietnamese */
+@font-face {
+  font-family: 'IBM Plex Sans';
+  font-style: normal;
+  font-weight: 600;
+  font-stretch: 100%;
+  font-display: swap;
+  src: url("79bd7e28-d5af-49e4-a952-24beb798cfcd") format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'IBM Plex Sans';
+  font-style: normal;
+  font-weight: 600;
+  font-stretch: 100%;
+  font-display: swap;
+  src: url("d1e82fc4-4cbc-4396-ab72-51f2a2696626") format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'IBM Plex Sans';
+  font-style: normal;
+  font-weight: 600;
+  font-stretch: 100%;
+  font-display: swap;
+  src: url("04380b39-3634-422d-a2b1-234f06ef2791") format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+</style>
+<style>
+body{margin:0;font-family:"IBM Plex Sans",system-ui,sans-serif;color:#16181D;background:#F7F6F2}
+a{color:#1E4FC2}a:hover{color:#173A99}
+</style>
+</helmet>
+<div style="width: 1440px; height: 820px; display: flex; background: #F7F6F2; overflow: hidden">
+<nav aria-label="Main" style="width: 220px; flex-shrink: 0; background: #1A3170; padding: 20px 14px; box-sizing: border-box; display: flex; flex-direction: column; gap: 4px">
+<div style="font-family: Fraunces, Georgia, serif; font-size: 22px; color: #FFFFFF; padding: 4px 12px 20px">OAMS</div>
+<a href="#" style="display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 8px; text-decoration: none; font-size: 14px; color: #C5D0EE; background: transparent"><svg width="18" height="18" sc-camel-view-box="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"></path></svg><span>Today</span></a><a href="#" style="display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 8px; text-decoration: none; font-size: 14px; color: #C5D0EE; background: transparent"><svg width="18" height="18" sc-camel-view-box="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 13l3-8h12l3 8v6a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"></path><path d="M3 13h5l1 3h6l1-3h5"></path></svg><span>Inbox</span></a><a href="#" style="display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 8px; text-decoration: none; font-size: 14px; color: #FFFFFF; background: #2D4C9E"><svg width="18" height="18" sc-camel-view-box="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"></rect><path d="M3 10h18M8 3v4M16 3v4"></path></svg><span>Calendar</span></a><a href="#" style="display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 8px; text-decoration: none; font-size: 14px; color: #C5D0EE; background: transparent"><svg width="18" height="18" sc-camel-view-box="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="3"></rect><path d="M8 12l3 3 5-6"></path></svg><span>To-Do</span></a><a href="#" style="display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 8px; text-decoration: none; font-size: 14px; color: #C5D0EE; background: transparent"><svg width="18" height="18" sc-camel-view-box="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 21V4a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v17M3 21h18"></path></svg><span>Reception</span></a>
+</nav>
+<div style="flex-grow: 1; display: flex; flex-direction: column; min-width: 0">
+<header style="height: 64px; flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; padding: 0 28px; background: #FFFFFF; border-bottom: 1px solid #E4E2DC">
+<h1 style="margin: 0; font-family: Fraunces, Georgia, serif; font-size: 24px; font-weight: 600">Calendar</h1>
+<div style="display: flex; align-items: center; gap: 16px">
+<button aria-label="Notifications, 3 unread" style="position: relative; width: 44px; height: 44px; border: 1px solid #E4E2DC; border-radius: 10px; background: #FFFFFF; color: #16181D; display: flex; align-items: center; justify-content: center"><svg width="20" height="20" sc-camel-view-box="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 8 3 8H3s3-1 3-8"></path><path d="M10 20a2 2 0 0 0 4 0"></path></svg><span style="position: absolute; top: 6px; right: 6px; min-width: 16px; height: 16px; border-radius: 8px; background: #B42318; color: #FFFFFF; font-size: 10px; font-weight: 600; display: flex; align-items: center; justify-content: center">3</span></button>
+<div style="display: flex; align-items: center; gap: 10px"><span style="width: 36px; height: 36px; border-radius: 18px; background: #2957D6; color: #FFFFFF; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 14px">RK</span><span style="font-size: 14px">Rajesh · PA to CEO</span></div>
+</div>
+</header>
+<main style="flex-grow: 1; padding: 24px 28px; display: flex; flex-direction: column; gap: 20px; min-height: 0">
+<div style="display: flex; align-items: center; justify-content: space-between">
+<div style="display: flex; align-items: center; gap: 12px">
+<button aria-label="Previous week" style="width: 40px; height: 40px; border: 1px solid #D5D2CA; border-radius: 8px; background: #FFFFFF; font: inherit">‹</button>
+<button style="height: 40px; padding: 0 14px; border: 1px solid #D5D2CA; border-radius: 8px; background: #FFFFFF; font: inherit; font-size: 14px">Today</button>
+<button aria-label="Next week" style="width: 40px; height: 40px; border: 1px solid #D5D2CA; border-radius: 8px; background: #FFFFFF; font: inherit">›</button>
+<span style="font-family: Fraunces, Georgia, serif; font-size: 20px; margin-left: 6px">21 – 25 September 2026</span>
+</div>
+<div style="display: flex; align-items: center; gap: 12px">
+<sc-raw-select aria-label="Official" style="height: 40px; border: 1px solid #D5D2CA; border-radius: 8px; padding: 0 10px; font: inherit; font-size: 14px; background: #FFFFFF"><option>CEO — Dr. K. Rao</option><option>CFO — S. Menon</option></sc-raw-select>
+<div role="group" aria-label="Calendar view" style="display: flex; border: 1px solid #D5D2CA; border-radius: 8px; overflow: hidden"><button style="height: 36px; padding: 0 14px; border: 0; font: inherit; font-size: 13px; background: #FFFFFF">Day</button><button aria-pressed="true" style="height: 36px; padding: 0 14px; border: 0; font: inherit; font-size: 13px; background: #16181D; color: #FFFFFF">Week</button><button style="height: 36px; padding: 0 14px; border: 0; font: inherit; font-size: 13px; background: #FFFFFF">Month</button><button style="height: 36px; padding: 0 14px; border: 0; font: inherit; font-size: 13px; background: #FFFFFF">Agenda</button></div>
+<button style="height: 40px; padding: 0 14px; border: 1px solid #D5D2CA; border-radius: 8px; background: #FFFFFF; font: inherit; font-size: 14px">Find a slot</button>
+<button style="height: 40px; padding: 0 14px; border: 0; border-radius: 8px; background: #2957D6; color: #FFFFFF; font: inherit; font-weight: 600; display: flex; align-items: center; gap: 6px"><svg width="16" height="16" sc-camel-view-box="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>New event</button>
+</div>
+</div>
+<div style="display: flex; gap: 16px; flex-grow: 1; min-height: 0">
+<section style="background: #FFFFFF; border: 1px solid #E4E2DC; border-radius: 12px; flex-grow: 1; display: flex; overflow: hidden; min-width: 0">
+<div style="width: 58px; flex-shrink: 0; padding-top: 52px"><div style="height: 64px; font-size: 11px; color: #5B6070; text-align: right; padding-right: 10px; box-sizing: border-box; margin-top: -7px">09:00</div><div style="height: 64px; font-size: 11px; color: #5B6070; text-align: right; padding-right: 10px; box-sizing: border-box; margin-top: -7px">10:00</div><div style="height: 64px; font-size: 11px; color: #5B6070; text-align: right; padding-right: 10px; box-sizing: border-box; margin-top: -7px">11:00</div><div style="height: 64px; font-size: 11px; color: #5B6070; text-align: right; padding-right: 10px; box-sizing: border-box; margin-top: -7px">12:00</div><div style="height: 64px; font-size: 11px; color: #5B6070; text-align: right; padding-right: 10px; box-sizing: border-box; margin-top: -7px">13:00</div><div style="height: 64px; font-size: 11px; color: #5B6070; text-align: right; padding-right: 10px; box-sizing: border-box; margin-top: -7px">14:00</div><div style="height: 64px; font-size: 11px; color: #5B6070; text-align: right; padding-right: 10px; box-sizing: border-box; margin-top: -7px">15:00</div><div style="height: 64px; font-size: 11px; color: #5B6070; text-align: right; padding-right: 10px; box-sizing: border-box; margin-top: -7px">16:00</div><div style="height: 64px; font-size: 11px; color: #5B6070; text-align: right; padding-right: 10px; box-sizing: border-box; margin-top: -7px">17:00</div></div>
+<sc-for list="{{days}}" as="day" hint-placeholder-count="5">
+<div style="flex-grow: 1; flex-basis: 0; min-width: 0; display: flex; flex-direction: column; border-left: 1px solid #E4E2DC">
+<div style="height: 52px; display: flex; flex-direction: column; align-items: center; justify-content: center; border-bottom: 1px solid #E4E2DC; {{day.headStyle}}">
+<span style="font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase">{{day.dow}}</span>
+<span style="font-size: 18px; font-weight: 600">{{day.num}}</span>
+</div>
+<div style="position: relative; height: 576px; {{day.colStyle}}">
+<div style="position: absolute; left: 0; right: 0; top: 0px; border-top: 1px solid #EFEDE7"></div><div style="position: absolute; left: 0; right: 0; top: 64px; border-top: 1px solid #EFEDE7"></div><div style="position: absolute; left: 0; right: 0; top: 128px; border-top: 1px solid #EFEDE7"></div><div style="position: absolute; left: 0; right: 0; top: 192px; border-top: 1px solid #EFEDE7"></div><div style="position: absolute; left: 0; right: 0; top: 256px; border-top: 1px solid #EFEDE7"></div><div style="position: absolute; left: 0; right: 0; top: 320px; border-top: 1px solid #EFEDE7"></div><div style="position: absolute; left: 0; right: 0; top: 384px; border-top: 1px solid #EFEDE7"></div><div style="position: absolute; left: 0; right: 0; top: 448px; border-top: 1px solid #EFEDE7"></div><div style="position: absolute; left: 0; right: 0; top: 512px; border-top: 1px solid #EFEDE7"></div>
+<sc-for list="{{day.events}}" as="ev" hint-placeholder-count="3">
+<button sc-camel-on-click="{{ev.pick}}" aria-label="{{ev.aria}}" style="{{ev.style}}">
+<span style="display: block; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{ev.title}}</span>
+<span style="display: block; opacity: 0.85">{{ev.time}}</span>
+</button>
+</sc-for>
+<sc-if value="{{day.isToday}}" hint-placeholder-val="{{false}}">
+<div style="position: absolute; left: 0; right: 0; top: 170px; height: 2px; background: #B42318"><span style="position: absolute; left: -5px; top: -4px; width: 10px; height: 10px; border-radius: 5px; background: #B42318"></span></div>
+</sc-if>
+</div>
+</div>
+</sc-for>
+</section>
+<aside style="width: 300px; flex-shrink: 0; display: flex; flex-direction: column; gap: 14px; overflow: hidden">
+<section style="background: #FFFFFF; border: 1px solid #E4E2DC; border-radius: 12px; padding: 14px 16px">
+<div style="font-size: 14px; font-weight: 600; margin-bottom: 8px">September 2026</div>
+<div style="display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 2px"><div style="font-size: 11px; color: #5B6070; text-align: center">M</div><div style="font-size: 11px; color: #5B6070; text-align: center">T</div><div style="font-size: 11px; color: #5B6070; text-align: center">W</div><div style="font-size: 11px; color: #5B6070; text-align: center">T</div><div style="font-size: 11px; color: #5B6070; text-align: center">F</div><div style="font-size: 11px; color: #5B6070; text-align: center">S</div><div style="font-size: 11px; color: #5B6070; text-align: center">S</div><div style="height: 30px; display: flex; align-items: center; justify-content: center; font-size: 12px; border-radius: 15px; color: #16181D"></div><div style="height: 30px; display: flex; align-items: center; justify-content: center; font-size: 12px; border-radius: 15px; color: #16181D">1</div><div style="height: 30px; display: flex; align-items: center; justify-content: center; font-size: 12px; border-radius: 15px; color: #16181D">2</div><div style="height: 30px; display: flex; align-items: center; justify-content: center; font-size: 12px; border-radius: 15px; color: #16181D">3</div><div style="height: 30px; display: flex; align-items: center; justify-content: center; font-size: 12px; border-radius: 15px; color: #16181D">4</div><div style="height: 30px; display: flex; align-items: center; justify-content: center; font-size: 12px; border-radius: 15px; color: #16181D">5</div><div style="height: 30px; display: flex; align-items: center; justify-content: center; font-size: 12px; border-radius: 15px; color: #16181D">6</div><div style="height: 30px; display: flex; align-items: center; justify-content: center; font-size: 12px; border-radius: 15px; color: #16181D">7</div><div style="height: 30px; display: flex; align-items: center; justify-content: center; font-size: 12px; border-radius: 15px; color: #16181D">8</div><div style="height: 30px; display: flex; align-items: center; justify-content: center; font-size: 12px; border-radius: 15px; color: #16181D">9</div><div style="height: 30px; display: flex; align-items: center; justify-content: center; font-size: 12px; border-radius: 15px; color: #16181D">10</div><div style="height: 30px; display: flex; align-items: center; justify-content: center; font-size: 12px; border-radius: 15px; color: #16181D">11</div><div style="height: 30px; display: flex; align-items: center; justify-content: center; font-size: 12px; border-radius: 15px; color: #16181D">12</div><div style="height: 30px; display: flex; align-items: center; justify-content: center; font-size: 12px; border-radius: 15px; color: #16181D">13</div><div style="height: 30px; display: flex; align-items: center; justify-content: center; font-size: 12px; border-radius: 15px; color: #16181D">14</div><div style="height: 30px; display: flex; align-items: center; justify-content: center; font-size: 12px; border-radius: 15px; color: #16181D">15</div><div style="height: 30px; display: flex; align-items: center; justify-content: center; font-size: 12px; border-radius: 15px; color: #16181D">16</div><div style="height: 30px; display: flex; align-items: center; justify-content: center; font-size: 12px; border-radius: 15px; color: #16181D">17</div><div style="height: 30px; display: flex; align-items: center; justify-content: center; font-size: 12px; border-radius: 15px; color: #16181D">18</div><div style="height: 30px; display: flex; align-items: center; justify-content: center; font-size: 12px; border-radius: 15px; color: #16181D">19</div><div style="height: 30px; display: flex; align-items: center; justify-content: center; font-size: 12px; border-radius: 15px; color: #16181D">20</div><div style="height: 30px; display: flex; align-items: center; justify-content: center; font-size: 12px; border-radius: 15px; background: #E8EEFC; color: #173A99">21</div><div style="height: 30px; display: flex; align-items: center; justify-content: center; font-size: 12px; border-radius: 15px; background: #E8EEFC; color: #173A99">22</div><div style="height: 30px; display: flex; align-items: center; justify-content: center; font-size: 12px; border-radius: 15px; background: #E8EEFC; color: #173A99">23</div><div style="height: 30px; display: flex; align-items: center; justify-content: center; font-size: 12px; border-radius: 15px; background: #E8EEFC; color: #173A99">24</div><div style="height: 30px; display: flex; align-items: center; justify-content: center; font-size: 12px; border-radius: 15px; background: #2957D6; color: #FFFFFF; font-weight: 600">25</div><div style="height: 30px; display: flex; align-items: center; justify-content: center; font-size: 12px; border-radius: 15px; color: #16181D">26</div><div style="height: 30px; display: flex; align-items: center; justify-content: center; font-size: 12px; border-radius: 15px; color: #16181D">27</div><div style="height: 30px; display: flex; align-items: center; justify-content: center; font-size: 12px; border-radius: 15px; color: #16181D">28</div><div style="height: 30px; display: flex; align-items: center; justify-content: center; font-size: 12px; border-radius: 15px; color: #16181D">29</div><div style="height: 30px; display: flex; align-items: center; justify-content: center; font-size: 12px; border-radius: 15px; color: #16181D">30</div><div style="height: 30px; display: flex; align-items: center; justify-content: center; font-size: 12px; border-radius: 15px; color: #16181D"></div><div style="height: 30px; display: flex; align-items: center; justify-content: center; font-size: 12px; border-radius: 15px; color: #16181D"></div><div style="height: 30px; display: flex; align-items: center; justify-content: center; font-size: 12px; border-radius: 15px; color: #16181D"></div><div style="height: 30px; display: flex; align-items: center; justify-content: center; font-size: 12px; border-radius: 15px; color: #16181D"></div></div>
+</section>
+<section style="background: #FFFFFF; border: 1px solid #E4E2DC; border-radius: 12px; padding: 14px 16px; display: flex; flex-direction: column; gap: 10px">
+<div style="font-size: 12px; font-weight: 600; color: #5B6070; text-transform: uppercase; letter-spacing: 0.06em">Viewing as</div>
+<div role="group" aria-label="Viewing as" style="display: flex; border: 1px solid #D5D2CA; border-radius: 8px; overflow: hidden">
+<button sc-camel-on-click="{{asOfficial}}" aria-pressed="{{isOfficial}}" style="{{offBtn}}">CEO</button>
+<button sc-camel-on-click="{{asPA}}" aria-pressed="{{isPA}}" style="{{paBtn}}">PA (no personal access)</button>
+</div>
+<label style="display: flex; align-items: center; gap: 10px; font-size: 14px"><input type="checkbox" checked="{{showOrg}}" sc-camel-on-change="{{toggleOrg}}" style="width: 18px; height: 18px; accent-color: #2957D6"><span style="width: 12px; height: 12px; border-radius: 3px; background: #2957D6"></span>Org calendar</label>
+<label style="display: flex; align-items: center; gap: 10px; font-size: 14px"><input type="checkbox" checked="{{showPer}}" sc-camel-on-change="{{togglePer}}" style="width: 18px; height: 18px; accent-color: #7A4FD0"><span style="width: 12px; height: 12px; border-radius: 3px; background: #7A4FD0"></span>Personal calendar</label>
+<div style="display: flex; flex-wrap: wrap; gap: 10px 14px; font-size: 12px; color: #3B4150; padding-top: 4px; border-top: 1px solid #EFEDE7">
+<span style="display: flex; align-items: center; gap: 6px"><span style="width: 14px; height: 12px; border-radius: 3px; background: repeating-linear-gradient(135deg, #FFF4DB 0 4px, #FDE7B0 4px 8px); border: 1px dashed #B7791F"></span>Hold</span>
+<span style="display: flex; align-items: center; gap: 6px"><span style="width: 14px; height: 12px; border-radius: 3px; border: 1.5px dashed #2957D6"></span>Soft block</span>
+<span style="display: flex; align-items: center; gap: 6px"><span style="width: 14px; height: 12px; border-radius: 3px; background: #E4E6EA; border: 1px solid #A3A9B6"></span>Busy (hidden)</span>
+</div>
+</section>
+<section style="background: #FFFFFF; border: 1px solid #E4E2DC; border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 10px; flex-grow: 1">
+<div style="display: flex; align-items: center; gap: 8px"><span style="width: 10px; height: 10px; border-radius: 5px; {{sel.dot}}"></span><span style="font-size: 12px; color: #5B6070">{{sel.kind}}</span></div>
+<div style="font-size: 17px; font-weight: 600; line-height: 1.3">{{sel.title}}</div>
+<div style="font-size: 13px; color: #3B4150">{{sel.when}}</div>
+<sc-if value="{{sel.hasMeta}}" hint-placeholder-val="{{true}}">
+<div style="display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: #3B4150; padding-top: 8px; border-top: 1px solid #EFEDE7">
+<span>{{sel.l1}}</span><span>{{sel.l2}}</span><span>{{sel.l3}}</span>
+</div>
+</sc-if>
+<sc-if value="{{sel.isAppt}}" hint-placeholder-val="{{true}}">
+<div style="display: flex; gap: 8px; margin-top: 4px">
+<button style="flex-grow: 1; height: 40px; border: 1px solid #D5D2CA; border-radius: 8px; background: #FFFFFF; font: inherit; font-size: 13px">Reschedule</button>
+<button style="flex-grow: 1; height: 40px; border: 0; border-radius: 8px; background: #2957D6; color: #FFFFFF; font: inherit; font-size: 13px; font-weight: 600">Open</button>
+</div>
+</sc-if>
+</section>
+</aside>
+</div>
+</main>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script="" data-props="{&quot;$preview&quot;:{&quot;width&quot;:1440,&quot;height&quot;:820}}">
+class Component extends DCLogic {
+  constructor(p) { super(p); this.state = { asPA: false, showOrg: true, showPer: true, sel: 'e2' }; }
+  renderVals() {
+    const S = this.state, HP = 64;
+    const K = {
+      org:  { bg: '#E6EDFC', bd: '1px solid #2957D6', c: '#173A99', dot: '#2957D6', label: 'Org · Meeting' },
+      appt: { bg: '#2957D6', bd: '1px solid #1E4FC2', c: '#FFFFFF', dot: '#2957D6', label: 'Org · Appointment' },
+      per:  { bg: '#EFE8FB', bd: '1px solid #7A4FD0', c: '#4B2A91', dot: '#7A4FD0', label: 'Personal' },
+      busy: { bg: '#E4E6EA', bd: '1px solid #A3A9B6', c: '#3B4150', dot: '#A3A9B6', label: 'Personal · details hidden' },
+      hold: { bg: 'repeating-linear-gradient(135deg, #FFF4DB 0 8px, #FDE7B0 8px 16px)', bd: '1px dashed #B7791F', c: '#7A4A06', dot: '#B7791F', label: 'Hold · awaiting approval' },
+      soft: { bg: '#FFFFFF', bd: '1.5px dashed #2957D6', c: '#173A99', dot: '#2957D6', label: 'Org · Soft block (bookable with warning)' },
+      trav: { bg: '#D8E2F9', bd: '1px solid #8FA8E8', c: '#173A99', dot: '#2957D6', label: 'Org · Travel' }
+    };
+    const E = [
+      { id: 'e1', d: 0, s: 9.5, e: 10.5, k: 'org', t: 'Leadership sync', l: ['Chairman office · 6 attendees', 'Recurring every Monday', ''] },
+      { id: 'e2', d: 0, s: 11, e: 11.75, k: 'appt', t: 'ABC Corp — Partnership', l: ['APT-2026-000171 · High priority', 'Board Room · 4 attendees', 'Status: Confirmed'] },
+      { id: 'e3', d: 0, s: 13, e: 14, k: 'per', t: 'Lunch with family', l: ['Only you can see this', '', ''] },
+      { id: 'e4', d: 1, s: 10, e: 11, k: 'org', t: 'Board prep', l: ['With CFO, COO', 'CEO cabin', ''] },
+      { id: 'e5', d: 1, s: 12, e: 13, k: 'per', t: 'Doctor visit', l: ['Only you can see this', '', ''] },
+      { id: 'e6', d: 1, s: 14, e: 16, k: 'soft', t: 'Focus time', l: ['Protected time', 'PA can book over it with a reason', ''] },
+      { id: 'e7', d: 2, s: 9, e: 12, k: 'trav', t: 'Travel — Vijayawada', l: ['Hard block · not bookable', '', ''] },
+      { id: 'e8', d: 2, s: 15, e: 15.5, k: 'appt', t: 'Vendor review', l: ['APT-2026-000176 · Medium priority', 'Online · Teams', 'Status: Confirmed'] },
+      { id: 'e9', d: 3, s: 10, e: 10.5, k: 'appt', t: 'Dean committee', l: ['APT-2026-000179 · Medium priority', 'Conference Room 2', 'Status: Confirmed'] },
+      { id: 'e10', d: 3, s: 11, e: 12, k: 'per', t: "Daughter's school event", l: ['Only you can see this', '', ''] },
+      { id: 'e11', d: 3, s: 15, e: 15.75, k: 'hold', t: 'Hostel expansion proposal', l: ['APT-2026-000184 · High priority', 'Hold expires in 5h', 'Waiting for CEO approval'] },
+      { id: 'e12', d: 4, s: 10, e: 10.5, k: 'appt', t: 'Govt liaison', l: ['APT-2026-000182 · Confidential', 'CEO cabin', 'Status: Visitor checked in'] },
+      { id: 'e13', d: 4, s: 14, e: 15, k: 'per', t: 'Personal errand', l: ['Only you can see this', '', ''] },
+      { id: 'e14', d: 4, s: 16, e: 17, k: 'org', t: 'Budget review', l: ['With CFO', 'Board Room', ''] }
+    ];
+    const fmt = (h) => { const hh = Math.floor(h), mm = Math.round((h - hh) * 60); return String(hh).padStart(2, '0') + ':' + String(mm).padStart(2, '0'); };
+    const DOW = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'], NUM = [21, 22, 23, 24, 25];
+    const view = (ev) => {
+      const personal = ev.k === 'per';
+      if (personal && S.asPA) return { ...ev, k: 'busy', t: 'Busy', l: ['Personal time — details hidden', 'Not bookable', ''] };
+      return ev;
+    };
+    const visible = E.filter((ev) => (ev.k === 'per' ? S.showPer : S.showOrg)).map(view);
+    const days = DOW.map((dow, i) => ({
+      dow, num: NUM[i], isToday: i === 4,
+      headStyle: i === 4 ? 'color: #2957D6' : 'color: #16181D',
+      colStyle: i === 4 ? 'background: #FBFCFF' : '',
+      events: visible.filter((ev) => ev.d === i).map((ev) => {
+        const k = K[ev.k], on = S.sel === ev.id;
+        return {
+          title: ev.t, time: fmt(ev.s) + ' – ' + fmt(ev.e), aria: ev.t + ', ' + fmt(ev.s),
+          pick: () => this.setState({ sel: ev.id }),
+          style: 'position: absolute; left: 4px; right: 4px; top: ' + ((ev.s - 9) * HP + 1) + 'px; height: ' + ((ev.e - ev.s) * HP - 3) + 'px; box-sizing: border-box; padding: 5px 8px; border-radius: 7px; background: ' + k.bg + '; border: ' + k.bd + '; color: ' + k.c + '; font: inherit; font-size: 12px; line-height: 1.35; text-align: left; overflow: hidden; cursor: pointer; ' + (on ? 'box-shadow: 0 0 0 2px #FFFFFF, 0 0 0 4px #16181D; z-index: 2;' : '')
+        };
+      })
+    }));
+    let s = visible.find((ev) => ev.id === S.sel) || visible[0];
+    const sk = s ? K[s.k] : K.org;
+    const sel = s ? {
+      title: s.t, kind: sk.label, dot: 'background: ' + sk.dot,
+      when: DOW[s.d] + ' ' + NUM[s.d] + ' Sep · ' + fmt(s.s) + ' – ' + fmt(s.e),
+      l1: s.l[0], l2: s.l[1], l3: s.l[2], hasMeta: true, isAppt: s.k === 'appt' || s.k === 'hold'
+    } : { title: 'Nothing selected', kind: '', dot: '', when: '', hasMeta: false, isAppt: false };
+    const segOn = 'flex-grow: 1; height: 36px; border: 0; font: inherit; font-size: 13px; background: #16181D; color: #FFFFFF';
+    const segOff = 'flex-grow: 1; height: 36px; border: 0; font: inherit; font-size: 13px; background: #FFFFFF; color: #16181D';
+    return {
+      days, sel,
+      isOfficial: !S.asPA, isPA: S.asPA,
+      offBtn: S.asPA ? segOff : segOn, paBtn: S.asPA ? segOn : segOff,
+      asOfficial: () => this.setState({ asPA: false }), asPA: () => this.setState({ asPA: true }),
+      showOrg: S.showOrg, showPer: S.showPer,
+      toggleOrg: () => this.setState({ showOrg: !S.showOrg }), togglePer: () => this.setState({ showPer: !S.showPer })
+    };
+  }
+}
+</script>
+
+
+</body></html>

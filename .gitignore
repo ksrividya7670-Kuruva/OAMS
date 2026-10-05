@@ -1,0 +1,14 @@
+node_modules
+dist
+build
+.turbo
+.cache
+coverage
+*.log
+.env
+.env.local
+.DS_Store
+*.tsbuildinfo
+.agents
+.vscode
+.system_generated

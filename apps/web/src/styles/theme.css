@@ -1,0 +1,131 @@
+@import 'tailwindcss';
+
+@theme {
+  --font-sans: 'IBM Plex Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-serif: 'Fraunces', Georgia, serif;
+
+  /* Priority semantic tokens */
+  --color-priority-low: #475467;
+  --color-priority-medium: #1e4fc2;
+  --color-priority-high: #9a3f07;
+  --color-priority-urgent: #b42318;
+
+  /* Status semantic tokens */
+  --color-status-review: #d97706;
+  --color-status-confirmed: #1f7a4d;
+  --color-status-terminal: #5b6070;
+  --color-status-rejected: #a11c12;
+
+  /* Calendar layer tokens */
+  --color-cal-org: #2957D6;
+  --color-cal-personal: #7A4FD0;
+  --color-cal-hold: #b7791f;
+}
+
+@custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *, .dark, .dark *));
+
+/* Light theme values - OAMS Sophisticated Ivory & Deep Navy System */
+:root,
+[data-theme='light'] {
+  --bg-canvas: #F7F6F2;
+  --bg-app: #F7F6F2;
+  --bg-surface: #FFFFFF;
+  --bg-surface-elevated: #FFFFFF;
+  --bg-subtle: #FBFAF7;
+  --bg-pill: #ECEAE3;
+  --border-default: #E4E2DC;
+  --border-muted: #D5D2CA;
+  --border-subtle: #E4E2DC;
+  --border-input: #D5D2CA;
+  --border-row: #EFEDE7;
+  --card-bg: #FFFFFF;
+  --text-main: #16181D;
+  --text-muted: #5B6070;
+  --text-inverse: #FFFFFF;
+
+  /* Sidebar Tokens */
+  --sidebar-bg: #1A3170;
+  --sidebar-active: #2D4C9E;
+  --sidebar-text: #C5D0EE;
+  --sidebar-text-active: #FFFFFF;
+
+  /* Brand Action Colors */
+  --brand-primary: #2957D6;
+  --brand-hover: #1E4FC2;
+  --primary: #2957D6;
+  --primary-hover: #1E4FC2;
+  --focus-ring: #2957D6;
+
+  /* High priority & badges */
+  --priority-high-bg: #FDF5EE;
+  --priority-high-border: #C2570C;
+  --priority-high-badge: #FDEBDD;
+  --priority-high-text: #9A3F07;
+  --badge-red: #B42318;
+  --color-done: #1F7A4D;
+
+  color-scheme: light;
+}
+
+/* Dark theme values */
+:root.dark,
+[data-theme='dark'] {
+  --bg-canvas: #0F172A;
+  --bg-app: #0F172A;
+  --bg-surface: #1E293B;
+  --bg-surface-elevated: #1E293B;
+  --bg-subtle: #192338;
+  --bg-pill: #243048;
+  --border-default: #334155;
+  --border-muted: #475569;
+  --border-subtle: #334155;
+  --border-input: #475569;
+  --border-row: #2D3D58;
+  --card-bg: #1E293B;
+  --text-main: #F8FAFC;
+  --text-muted: #94A3B8;
+  --text-inverse: #0F172A;
+
+  --sidebar-bg: #0D1B3E;
+  --sidebar-active: #2D4C9E;
+  --sidebar-text: #9FB2E8;
+  --sidebar-text-active: #FFFFFF;
+
+  --brand-primary: #3B82F6;
+  --brand-hover: #60A5FA;
+  --primary: #3B82F6;
+  --primary-hover: #60A5FA;
+  --focus-ring: #60A5FA;
+
+  --priority-high-bg: #451A03;
+  --priority-high-border: #EA580C;
+  --priority-high-badge: #7C2D12;
+  --priority-high-text: #FDBA74;
+  --badge-red: #EF4444;
+  --color-done: #22C55E;
+
+  color-scheme: dark;
+}
+
+/* Base resets & utilities */
+body {
+  background-color: var(--bg-canvas);
+  color: var(--text-main);
+  font-family: var(--font-sans);
+  margin: 0;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+h1, h2, h3, .font-serif {
+  font-family: 'Fraunces', Georgia, serif;
+}
+
+/* Calendar hold striped pattern (§19.2) */
+.bg-hold-pattern {
+  background: repeating-linear-gradient(
+    135deg,
+    #FFF4DB 0 4px,
+    #FDE7B0 4px 8px
+  );
+  border: 1px dashed #B7791F;
+}

@@ -1,0 +1,10 @@
+{
+  "buildCommand": "pnpm --filter @oams/shared build && pnpm --filter @oams/web build",
+  "outputDirectory": "apps/web/dist",
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}
