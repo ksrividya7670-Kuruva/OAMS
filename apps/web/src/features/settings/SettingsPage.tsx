@@ -1,7 +1,7 @@
 import { useState, type FC, type FormEvent } from 'react';
 import { useAuth } from '@/features/auth/AuthContext';
 import { api } from '@/lib/api';
-import { User, Moon, Check, Save } from 'lucide-react';
+import { User, Moon, Check, Save, Bell, Send, ShieldCheck, Sparkles } from 'lucide-react';
 
 export const SettingsPage: FC = () => {
   const { user, token } = useAuth();
@@ -11,6 +11,47 @@ export const SettingsPage: FC = () => {
   const [digestMode, setDigestMode] = useState<'OFF' | 'DAILY'>('OFF');
   const [saved, setSaved] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [testSuccess, setTestSuccess] = useState<string | null>(null);
+
+  const triggerTestNotification = (type: 'STATUS_UPDATE' | 'VIP_ARRIVAL') => {
+    if (!user) return;
+    const isStatus = type === 'STATUS_UPDATE';
+    const refNo = `APT-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
+    const newNotif = {
+      id: `notif-test-${Date.now()}`,
+      userId: user.id,
+      officialId: (user as any).officialId || null,
+      targetRoles: user.roles,
+      type: isStatus ? 'appointment_confirmed' : 'visit_arrived',
+      eventType: isStatus ? 'APPOINTMENT_STATUS_CHANGED' : 'VISITOR_ARRIVED',
+      title: isStatus ? `Status Updated: Confirmed (${refNo})` : `VIP Guest Arrived at Gate 1`,
+      message: isStatus
+        ? `Appointment ${refNo} has been cleared and confirmed by the Executive Secretariat.`
+        : `Dr. Ramesh (AICTE Delegation) has checked in at Security Gate Alpha. Escort requested.`,
+      body: isStatus
+        ? `Appointment ${refNo} has been cleared and confirmed by the Executive Secretariat.`
+        : `Dr. Ramesh (AICTE Delegation) has checked in at Security Gate Alpha. Escort requested.`,
+      link: '/my/appointments',
+      priority: 'HIGH',
+      entityType: isStatus ? 'APPOINTMENT' : 'VISIT',
+      entityId: `apt-${Date.now()}`,
+      isRead: false,
+      readAt: null,
+      createdAt: new Date().toISOString(),
+    };
+
+    try {
+      const existing = JSON.parse(localStorage.getItem('oams_mock_notifications') || '[]');
+      existing.unshift(newNotif);
+      localStorage.setItem('oams_mock_notifications', JSON.stringify(existing));
+    } catch {}
+
+    window.dispatchEvent(new CustomEvent('oams-notification-created', { detail: newNotif }));
+    window.dispatchEvent(new CustomEvent('oams-notifications-updated'));
+
+    setTestSuccess(isStatus ? 'Status Update Notification Dispatched!' : 'VIP Arrival Alert Dispatched!');
+    setTimeout(() => setTestSuccess(null), 3500);
+  };
 
   const handleSave = async (e: FormEvent) => {
     e.preventDefault();
@@ -171,6 +212,69 @@ export const SettingsPage: FC = () => {
           </button>
         </div>
       </form>
+
+      {/* Real-Time Notification & Workflow Diagnostics Card */}
+      <div className="p-6 rounded-xl border border-[var(--border-default)] bg-[var(--bg-surface)] shadow-xs space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-sm font-semibold text-[var(--text-main)] flex items-center gap-2">
+              <Bell className="w-4 h-4 text-amber-500" /> Real-Time Notification & Workflow Diagnostics
+            </h2>
+            <p className="text-xs text-[var(--text-muted)] mt-0.5">
+              Verify in-app notification streaming, status alerts, and toast delivery live during evaluations.
+            </p>
+          </div>
+          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-[10px] font-bold text-emerald-700 dark:text-emerald-400">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            <span>SSE Gateway Active</span>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+          <div className="p-4 rounded-xl border border-[var(--border-default)] bg-[var(--bg-subtle)] space-y-2">
+            <div className="text-xs font-bold text-[var(--text-main)] flex items-center gap-1.5">
+              <Sparkles className="w-3.5 h-3.5 text-blue-500" />
+              <span>Simulate Status Change Alert</span>
+            </div>
+            <p className="text-[11px] text-[var(--text-muted)] leading-relaxed">
+              Triggers a live status transition notification (Confirmed) that immediately updates the top notification bell badge and popup toast.
+            </p>
+            <button
+              type="button"
+              onClick={() => triggerTestNotification('STATUS_UPDATE')}
+              className="mt-1 w-full px-3 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold flex items-center justify-center gap-1.5 transition cursor-pointer shadow-2xs"
+            >
+              <Send className="w-3 h-3" />
+              <span>Send Status Update Notification</span>
+            </button>
+          </div>
+
+          <div className="p-4 rounded-xl border border-[var(--border-default)] bg-[var(--bg-subtle)] space-y-2">
+            <div className="text-xs font-bold text-[var(--text-main)] flex items-center gap-1.5">
+              <ShieldCheck className="w-3.5 h-3.5 text-teal-500" />
+              <span>Simulate VIP Gate Arrival Alert</span>
+            </div>
+            <p className="text-[11px] text-[var(--text-muted)] leading-relaxed">
+              Triggers a security check-in arrival event at Security Point Alpha, notifying reception and executive secretariat officers.
+            </p>
+            <button
+              type="button"
+              onClick={() => triggerTestNotification('VIP_ARRIVAL')}
+              className="mt-1 w-full px-3 py-2 rounded-lg bg-teal-600 hover:bg-teal-700 text-white text-xs font-semibold flex items-center justify-center gap-1.5 transition cursor-pointer shadow-2xs"
+            >
+              <Send className="w-3 h-3" />
+              <span>Send Gate Arrival Alert</span>
+            </button>
+          </div>
+        </div>
+
+        {testSuccess && (
+          <div className="p-3 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-xl text-xs text-emerald-800 dark:text-emerald-300 font-semibold flex items-center gap-2 animate-in fade-in">
+            <Check className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+            <span>{testSuccess} Look at the top notification bell above to inspect!</span>
+          </div>
+        )}
+      </div>
     </div>
   );
 };

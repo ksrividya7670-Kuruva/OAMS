@@ -16,7 +16,7 @@ import {
 } from './mockData';
 import { RoleCode, AppointmentStatus, Priority, TaskStatus, VisitStatus } from '@oams/shared';
 
-const CURRENT_MOCK_VERSION = 'v26_kvk_official_role';
+const CURRENT_MOCK_VERSION = 'v29_uniform_modules_chamber_isolation';
 if (typeof window !== 'undefined') {
   try {
     if (localStorage.getItem('oams_mock_data_version') !== CURRENT_MOCK_VERSION) {
@@ -241,6 +241,213 @@ export function handleMockRequest<T>(url: string, method: string = 'GET', body?:
     return rooms as unknown as T;
   }
 
+  // 3.5 Scheduling & Slots Engine (§11)
+  if (cleanUrl === '/api/v1/scheduling/slots' || cleanUrl === '/api/scheduling/slots') {
+    const rooms: any[] = getStorage('rooms', INITIAL_ROOMS);
+    const appointments: any[] = getStorage('appointments', INITIAL_APPOINTMENTS);
+
+    const primaryOfficialId = body?.officialIds?.[0]?.id || 'off-1';
+    const duration = body?.durationMin || 30;
+    const windows = Array.isArray(body?.windows) && body.windows.length > 0 ? body.windows : null;
+
+    // Determine target dates from windows or tomorrow
+    const baseDate = windows?.[0]?.date
+      ? new Date(windows[0].date)
+      : new Date(Date.now() + 24 * 3600 * 1000);
+    const dateStr = baseDate.toISOString().split('T')[0];
+
+    // Find confirmed appointments for this official on this date
+    const bookedTimes = appointments
+      .filter((a: any) => {
+        if (a.status !== 'CONFIRMED' && a.status !== 'IN_PROGRESS') return false;
+        if (a.officialId !== primaryOfficialId && a.official?.id !== primaryOfficialId) return false;
+        const aptDate = (a.scheduledStartTime || a.startAt || '').split('T')[0];
+        return aptDate === dateStr;
+      })
+      .map((a: any) => {
+        const s = new Date(a.scheduledStartTime || a.startAt);
+        const e = new Date(a.scheduledEndTime || a.endAt || s.getTime() + 30 * 60000);
+        return { start: s.getTime(), end: e.getTime() };
+      });
+
+    const candidateHours = [
+      { startHour: 10, startMin: 0 },
+      { startHour: 11, startMin: 30 },
+      { startHour: 14, startMin: 0 },
+      { startHour: 15, startMin: 30 },
+      { startHour: 16, startMin: 45 },
+    ];
+
+    const availableRooms = rooms.filter((r: any) => r.isActive !== false);
+    const defaultRoom = availableRooms[0] || { id: 'room-1', name: 'Chamber 101 (Executive Suite)', building: 'Main Secretariat', floor: '1st Floor' };
+
+    const slots = [];
+    for (let i = 0; i < candidateHours.length; i++) {
+      const { startHour, startMin } = candidateHours[i];
+      const slotStart = new Date(`${dateStr}T${String(startHour).padStart(2, '0')}:${String(startMin).padStart(2, '0')}:00.000Z`);
+      const slotEnd = new Date(slotStart.getTime() + duration * 60000);
+
+      const hasOverlap = bookedTimes.some((b: any) => slotStart.getTime() < b.end && slotEnd.getTime() > b.start);
+      if (!hasOverlap) {
+        const room = availableRooms[i % availableRooms.length] || defaultRoom;
+        const score = 98 - i * 3;
+        slots.push({
+          start: slotStart.toISOString(),
+          end: slotEnd.toISOString(),
+          roomId: room.id,
+          roomName: room.name,
+          score,
+          reasons: [
+            'Chamber dignitary buffer verified (no consecutive conflict)',
+            `${room.name} verified available with AV & Protocol clearance`,
+            'Aligned with requested preferred working window',
+          ],
+        });
+      }
+    }
+
+    return (slots.length > 0 ? slots : [
+      {
+        start: new Date(Date.now() + 24 * 3600 * 1000).toISOString(),
+        end: new Date(Date.now() + 24 * 3600 * 1000 + duration * 60000).toISOString(),
+        roomId: defaultRoom.id,
+        roomName: defaultRoom.name,
+        score: 95,
+        reasons: ['Direct priority match for executive chamber calendar'],
+      }
+    ]) as unknown as T;
+  }
+
+  // 3.6 Day Slots Availability Engine (§4)
+  if (cleanUrl === '/api/v1/scheduling/day-slots' || cleanUrl === '/api/scheduling/day-slots') {
+    const appointments: any[] = getStorage('appointments', INITIAL_APPOINTMENTS);
+    const searchParams = new URLSearchParams(url.includes('?') ? url.split('?')[1] : '');
+    const offId = searchParams.get('officialId') || body?.officialId || 'off-1';
+    const dateStr = searchParams.get('date') || body?.date || new Date().toISOString().split('T')[0];
+
+    const standardTimeRanges = [
+      { from: '09:30', to: '10:00', label: '09:30 AM – 10:00 AM' },
+      { from: '10:00', to: '10:30', label: '10:00 AM – 10:30 AM' },
+      { from: '10:30', to: '11:00', label: '10:30 AM – 11:00 AM' },
+      { from: '11:00', to: '11:30', label: '11:00 AM – 11:30 AM' },
+      { from: '11:30', to: '12:00', label: '11:30 AM – 12:00 PM' },
+      { from: '14:00', to: '14:30', label: '02:00 PM – 02:30 PM' },
+      { from: '14:30', to: '15:00', label: '02:30 PM – 03:00 PM' },
+      { from: '15:00', to: '15:30', label: '03:00 PM – 03:30 PM' },
+      { from: '15:30', to: '16:00', label: '03:30 PM – 04:00 PM' },
+      { from: '16:00', to: '16:30', label: '04:00 PM – 04:30 PM' },
+      { from: '16:30', to: '17:00', label: '04:30 PM – 05:00 PM' },
+    ];
+
+    // Find active appointments for this official on this date
+    const dayAppointments = appointments.filter((a: any) => {
+      if (
+        a.status === 'CANCELLED' ||
+        a.status === 'REJECTED' ||
+        a.status === 'NO_SHOW' ||
+        a.status === 'EXPIRED'
+      ) {
+        return false;
+      }
+      if (offId && a.officialId !== offId && a.official?.id !== offId) return false;
+
+      const aptDate = (
+        a.scheduledStartTime ||
+        a.startAt ||
+        a.preferredWindows?.[0]?.date ||
+        ''
+      ).split('T')[0];
+      return aptDate === dateStr;
+    });
+
+    const evaluatedSlots = standardTimeRanges.map((slot) => {
+      const slotStart = new Date(`${dateStr}T${slot.from}:00`).getTime();
+      const slotEnd = new Date(`${dateStr}T${slot.to}:00`).getTime();
+
+      const conflictingApt = dayAppointments.find((a: any) => {
+        let aptStartMs = 0;
+        let aptEndMs = 0;
+
+        if (a.scheduledStartTime || a.startAt) {
+          const s = a.scheduledStartTime || a.startAt;
+          const e = a.scheduledEndTime || a.endAt;
+          aptStartMs = new Date(s).getTime();
+          aptEndMs = e ? new Date(e).getTime() : aptStartMs + 30 * 60000;
+        } else if (a.preferredWindows?.[0]) {
+          const pw = a.preferredWindows[0];
+          aptStartMs = new Date(`${pw.date}T${pw.from || '10:00'}:00`).getTime();
+          aptEndMs = new Date(`${pw.date}T${pw.to || '10:30'}:00`).getTime();
+        }
+
+        return slotStart < aptEndMs && slotEnd > aptStartMs;
+      });
+
+      const isBooked = Boolean(conflictingApt);
+      return {
+        ...slot,
+        date: dateStr,
+        status: isBooked ? 'BOOKED' : 'AVAILABLE',
+        isBooked,
+        bookedReferenceNo: conflictingApt?.referenceNo || null,
+        bookedSubject: conflictingApt?.subject || null,
+      };
+    });
+
+    return evaluatedSlots as unknown as T;
+  }
+
+  // 3.7 Scheduling Conflict Check
+  if (cleanUrl === '/api/v1/scheduling/check' || cleanUrl === '/api/scheduling/check') {
+    const appointments: any[] = getStorage('appointments', INITIAL_APPOINTMENTS);
+    const start = body?.startAt ? new Date(body.startAt).getTime() : 0;
+    const end = body?.endAt ? new Date(body.endAt).getTime() : 0;
+    const offId = body?.officialId;
+
+    const conflict = appointments.find((a: any) => {
+      if (
+        a.status === 'CANCELLED' ||
+        a.status === 'REJECTED' ||
+        a.status === 'NO_SHOW' ||
+        a.status === 'EXPIRED'
+      ) {
+        return false;
+      }
+      if (offId && a.officialId !== offId && a.official?.id !== offId) return false;
+
+      let aStart = 0;
+      let aEnd = 0;
+      if (a.scheduledStartTime || a.startAt) {
+        aStart = new Date(a.scheduledStartTime || a.startAt).getTime();
+        aEnd = new Date(a.scheduledEndTime || a.endAt || aStart + 30 * 60000).getTime();
+      } else if (a.preferredWindows?.[0]) {
+        const pw = a.preferredWindows[0];
+        aStart = new Date(`${pw.date}T${pw.from || '10:00'}:00`).getTime();
+        aEnd = new Date(`${pw.date}T${pw.to || '10:30'}:00`).getTime();
+      }
+
+      return start < aEnd && end > aStart;
+    });
+
+    if (conflict) {
+      return {
+        hasConflict: true,
+        conflicts: [
+          {
+            id: conflict.id,
+            referenceNo: conflict.referenceNo,
+            subject: conflict.subject,
+            reason: `Chamber time slot already allocated to ${conflict.referenceNo}`,
+          },
+        ],
+      } as unknown as T;
+    }
+
+    return {
+      hasConflict: false,
+      conflicts: [],
+    } as unknown as T;
+  }
+
   // 4. Appointments Inbox, Submissions & Tracking Detail
   if (cleanUrl.includes('/api/v1/appointments') || cleanUrl.includes('/api/appointments')) {
     const appointments: any[] = getStorage('appointments', INITIAL_APPOINTMENTS);
@@ -262,10 +469,34 @@ export function handleMockRequest<T>(url: string, method: string = 'GET', body?:
           persona.roles.includes('SECURITY')
         ) {
           isGlobalRole = true;
-        } else if (persona.assignedOfficialIds) {
+        } else if (persona.assignedOfficialIds && persona.assignedOfficialIds.length > 0) {
           allowedOfficialIds = persona.assignedOfficialIds;
+        } else if (persona.officialId) {
+          allowedOfficialIds = [persona.officialId];
         }
       }
+    }
+
+    if (!isGlobalRole && (!allowedOfficialIds || allowedOfficialIds.length === 0) && typeof localStorage !== 'undefined') {
+      try {
+        const uStr = localStorage.getItem('oams_user') || sessionStorage.getItem('oams_user');
+        if (uStr) {
+          const authU = JSON.parse(uStr);
+          if (
+            authU.roles?.includes('SUPER_ADMIN') ||
+            authU.roles?.includes('ADMIN') ||
+            authU.roles?.includes('APPOINTMENT_ADMIN') ||
+            authU.roles?.includes('RECEPTION') ||
+            authU.roles?.includes('SECURITY')
+          ) {
+            isGlobalRole = true;
+          } else if (authU.officialId) {
+            allowedOfficialIds = [authU.officialId];
+          } else if (authU.assignedOfficialIds && authU.assignedOfficialIds.length > 0) {
+            allowedOfficialIds = authU.assignedOfficialIds;
+          }
+        }
+      } catch {}
     }
 
     const formatDetail = (apt: any) => {
@@ -357,7 +588,33 @@ export function handleMockRequest<T>(url: string, method: string = 'GET', body?:
 
     // Duplicate check (§9.1)
     if (cleanUrl.endsWith('/check-duplicate') && method === 'POST') {
+      const offId = body?.officialId;
+      const prefDate = body?.preferredDate;
+      const subj = (body?.subject || '').trim().toLowerCase();
+
+      // Check for active existing appointments for this official on the same date or similar subject
+      const match = appointments.find((a: any) => {
+        if (a.status === 'CANCELLED' || a.status === 'REJECTED') return false;
+        const sameOfficial = a.officialId === offId || a.official?.id === offId;
+        const aptDate = (a.scheduledStartTime || a.startAt || a.preferredWindows?.[0]?.date || '').split('T')[0];
+        const sameDate = prefDate && aptDate === prefDate;
+        const sameSubject = subj && subj.length > 4 && (a.subject || '').toLowerCase().includes(subj);
+        return sameOfficial && (sameDate || sameSubject);
+      });
+
+      if (match) {
+        return {
+          isDuplicate: true,
+          isBlocked: false,
+          isWarning: true,
+          message: `Notice: An active appointment (${match.referenceNo}: "${match.subject}") is already registered for ${match.officialName || 'the official'}. You may still submit if this is an additional session.`,
+          existingAppointmentId: match.id,
+          existingReferenceNo: match.referenceNo,
+        } as unknown as T;
+      }
+
       return {
+        isDuplicate: false,
         isBlocked: false,
         isWarning: false,
         message: null,
@@ -508,12 +765,60 @@ export function handleMockRequest<T>(url: string, method: string = 'GET', body?:
 
     // Change requests
     if (cleanUrl.endsWith('/change-requests')) {
-      return [] as unknown as T;
+      const pathParts = cleanUrl.split('/');
+      const aptId = pathParts[pathParts.length - 2];
+      const changeRequests: any[] = getStorage('change_requests', []);
+      if (method === 'POST') {
+        const newCr = {
+          id: `cr-${Date.now()}`,
+          appointmentId: aptId,
+          status: 'PENDING',
+          reason: body?.reason || 'Schedule adjustment requested',
+          preferredWindows: body?.preferredWindows || [],
+          newDurationMin: body?.newDurationMin,
+          proposals: [],
+          createdAt: new Date().toISOString(),
+        };
+        changeRequests.unshift(newCr);
+        setStorage('change_requests', changeRequests);
+        return newCr as unknown as T;
+      }
+      const matched = changeRequests.filter((cr) => cr.appointmentId === aptId);
+      return matched as unknown as T;
     }
 
-    // Change requests propose / reject (§10.2, §10.3)
-    if (cleanUrl.includes('/change-requests/') && method === 'POST') {
-      return { success: true } as unknown as T;
+    // Change requests withdraw / accept / propose
+    if (cleanUrl.includes('/change-requests/')) {
+      const pathParts = cleanUrl.split('/');
+      const changeRequests: any[] = getStorage('change_requests', []);
+      if (cleanUrl.endsWith('/withdraw') && method === 'POST') {
+        const crId = pathParts[pathParts.length - 2];
+        const idx = changeRequests.findIndex((c) => c.id === crId);
+        if (idx >= 0) {
+          changeRequests[idx].status = 'WITHDRAWN';
+          setStorage('change_requests', changeRequests);
+        }
+        return { success: true } as unknown as T;
+      }
+      if (cleanUrl.endsWith('/accept') && method === 'POST') {
+        const crId = pathParts[pathParts.length - 2];
+        const idx = changeRequests.findIndex((c) => c.id === crId);
+        if (idx >= 0) {
+          changeRequests[idx].status = 'ACCEPTED';
+          setStorage('change_requests', changeRequests);
+          const aptId = changeRequests[idx].appointmentId;
+          const aptIdx = appointments.findIndex((a) => a.id === aptId || a.referenceNo === aptId);
+          if (aptIdx >= 0) {
+            appointments[aptIdx].status = AppointmentStatus.CONFIRMED;
+            appointments[aptIdx].confirmedAt = new Date().toISOString();
+            setStorage('appointments', appointments);
+          }
+        }
+        return { success: true } as unknown as T;
+      }
+      if (method === 'POST') {
+        return { success: true } as unknown as T;
+      }
     }
 
     // Remove official from appointment
@@ -523,20 +828,18 @@ export function handleMockRequest<T>(url: string, method: string = 'GET', body?:
 
     // Proposals list (§10.2)
     if (cleanUrl.endsWith('/proposals') && method === 'GET') {
+      const pathParts = cleanUrl.split('/');
+      const aptId = pathParts[pathParts.length - 2];
+      const targetApt = appointments.find((a) => a.id === aptId || a.referenceNo === aptId);
+      if (targetApt?.proposals && targetApt.proposals.length > 0) {
+        return targetApt.proposals as unknown as T;
+      }
       return [
         {
           id: 'prop-1',
           startAt: new Date(Date.now() + 24 * 3600 * 1000).toISOString(),
           endAt: new Date(Date.now() + 24.5 * 3600 * 1000).toISOString(),
           roomId: 'room-1',
-          proposedBy: 'Secretariat Office',
-          expiresAt: new Date(Date.now() + 48 * 3600 * 1000).toISOString(),
-        },
-        {
-          id: 'prop-2',
-          startAt: new Date(Date.now() + 26 * 3600 * 1000).toISOString(),
-          endAt: new Date(Date.now() + 26.5 * 3600 * 1000).toISOString(),
-          roomId: 'room-2',
           proposedBy: 'Secretariat Office',
           expiresAt: new Date(Date.now() + 48 * 3600 * 1000).toISOString(),
         },
@@ -552,6 +855,7 @@ export function handleMockRequest<T>(url: string, method: string = 'GET', body?:
         appointments[idx].status = AppointmentStatus.CONFIRMED;
         appointments[idx].scheduledStartTime = new Date(Date.now() + 24 * 3600 * 1000).toISOString();
         appointments[idx].scheduledEndTime = new Date(Date.now() + 24.5 * 3600 * 1000).toISOString();
+        appointments[idx].confirmedAt = new Date().toISOString();
         setStorage('appointments', appointments);
         return formatDetail(appointments[idx]) as unknown as T;
       }
@@ -565,6 +869,20 @@ export function handleMockRequest<T>(url: string, method: string = 'GET', body?:
 
     // Propose alternative times (§10.2)
     if (cleanUrl.endsWith('/propose-times') && method === 'POST') {
+      const pathParts = cleanUrl.split('/');
+      const aptId = pathParts[pathParts.length - 2];
+      const idx = appointments.findIndex((a) => a.id === aptId || a.referenceNo === aptId);
+      if (idx >= 0) {
+        appointments[idx].status = AppointmentStatus.UNDER_REVIEW;
+        appointments[idx].proposals = (body?.slots || []).map((s: any, pIdx: number) => ({
+          id: `prop-${aptId}-${pIdx + 1}`,
+          startAt: s.startAt,
+          endAt: s.endAt,
+          roomId: s.roomId || 'room-1',
+          expiresAt: new Date(Date.now() + 48 * 3600 * 1000).toISOString(),
+        }));
+        setStorage('appointments', appointments);
+      }
       return { success: true } as unknown as T;
     }
 
@@ -625,7 +943,7 @@ export function handleMockRequest<T>(url: string, method: string = 'GET', body?:
     if (method === 'PATCH' || method === 'POST') {
       const action = lastPart.toLowerCase();
       const matchId = pathParts[pathParts.length - 2];
-      const isActionRoute = ['approve', 'reject', 'start', 'complete', 'conclude', 'confirm', 'close', 'schedule'].includes(action);
+      const isActionRoute = ['approve', 'reject', 'start', 'complete', 'conclude', 'confirm', 'close', 'schedule', 'check-in', 'checkin'].includes(action);
 
       const targetId = isActionRoute ? matchId : lastPart;
       const cleanTargetId = targetId.replace(/^cal-apt-/, '').replace(/^cal-block-/, '');
@@ -647,6 +965,9 @@ export function handleMockRequest<T>(url: string, method: string = 'GET', body?:
         } else if (action === 'approve' || action === 'confirm' || body?.status === AppointmentStatus.CONFIRMED) {
           appointments[targetIndex].status = AppointmentStatus.CONFIRMED;
           appointments[targetIndex].confirmedAt = new Date().toISOString();
+        } else if (action === 'check-in' || action === 'checkin' || body?.status === AppointmentStatus.CHECKED_IN) {
+          appointments[targetIndex].status = AppointmentStatus.CHECKED_IN;
+          appointments[targetIndex].checkedInAt = new Date().toISOString();
         } else if (action === 'reject' || body?.status === AppointmentStatus.REJECTED) {
           appointments[targetIndex].status = AppointmentStatus.REJECTED;
           appointments[targetIndex].rejectedAt = new Date().toISOString();
@@ -893,9 +1214,67 @@ export function handleMockRequest<T>(url: string, method: string = 'GET', body?:
       throw new Error(`Appointment record not found for reference "${decodedPart}"`);
     }
 
+    // Explicit My Appointments endpoint (/api/v1/appointments/my)
+    if (cleanUrl.endsWith('/my') || cleanUrl.includes('/appointments/my')) {
+      let myUser: any = null;
+      if (personaId) {
+        myUser = Object.values(DEMO_PERSONAS).find(
+          (p) => p.id === personaId || p.email.toLowerCase() === personaId.toLowerCase(),
+        );
+      }
+      if (!myUser && typeof localStorage !== 'undefined') {
+        try {
+          const uStr = localStorage.getItem('oams_user') || sessionStorage.getItem('oams_user');
+          if (uStr) myUser = JSON.parse(uStr);
+        } catch {}
+      }
+
+      let myList = [...appointments];
+      if (myUser) {
+        if (myUser.officialId) {
+          // Official: only appointments for their own chamber
+          myList = appointments.filter((a) => {
+            const offId = a.officialId || a.official?.id || '';
+            const offName = (a.officialName || a.official?.fullName || '').toLowerCase();
+            const uName = (myUser.fullName || '').toLowerCase().replace(/^(mr\.|ms\.|dr\.|prof\.)\s*/, '').trim();
+            return offId === myUser.officialId || (uName && offName.includes(uName));
+          });
+        } else if (myUser.assignedOfficialIds && myUser.assignedOfficialIds.length > 0) {
+          // Secretariat PA: only appointments for assigned officials
+          myList = appointments.filter((a) => {
+            const offId = a.officialId || a.official?.id || '';
+            return myUser.assignedOfficialIds.includes(offId);
+          });
+        } else {
+          // Citizen / Guest / Petitioner: only their own requested appointments
+          myList = appointments.filter((a) => {
+            const cId = a.citizenUserId || a.userId;
+            const reqEmail = (a.requesterEmail || a.email || '').toLowerCase();
+            const uEmail = (myUser.email || '').toLowerCase();
+            const reqName = (a.requesterName || a.fullName || '').toLowerCase();
+            const uName = (myUser.fullName || '').toLowerCase();
+            return (
+              (cId && cId === myUser.id) ||
+              (uEmail && reqEmail === uEmail) ||
+              (uName && reqName.includes(uName))
+            );
+          });
+        }
+      }
+      return myList.map((a) => formatDetail(a)) as unknown as T;
+    }
+
     // List of appointments
+    const queryParams = new URLSearchParams(url.includes('?') ? url.split('?')[1] : '');
+    const officialIdParam = queryParams.get('officialId');
+
     let filteredList = appointments;
-    if (!isGlobalRole && allowedOfficialIds !== null && allowedOfficialIds.length > 0) {
+    if (officialIdParam) {
+      filteredList = filteredList.filter((a) => {
+        const offId = a.officialId || a.official?.id || 'off-1';
+        return offId === officialIdParam;
+      });
+    } else if (!isGlobalRole && allowedOfficialIds !== null && allowedOfficialIds.length > 0) {
       filteredList = filteredList.filter((a) => {
         const offId = a.officialId || a.official?.id || 'off-1';
         return allowedOfficialIds!.includes(offId);
@@ -1739,8 +2118,24 @@ export function handleMockRequest<T>(url: string, method: string = 'GET', body?:
         if (body?.vehicleNo) visits[idx].vehicleNo = body.vehicleNo;
         visits[idx].checkedInAt = new Date().toISOString();
         visits[idx].waitingMinutes = 0;
-        visits[idx].updatedAt = new Date().toISOString();
         setStorage('visits', visits);
+
+        // Also synchronize linked appointment status to CHECKED_IN
+        try {
+          const apts: any[] = getStorage('appointments', INITIAL_APPOINTMENTS);
+          const aptIdx = apts.findIndex(
+            (a: any) =>
+              a.id === visits[idx].appointmentId ||
+              a.referenceNo === visits[idx].referenceNo ||
+              a.id === visitId,
+          );
+          if (aptIdx >= 0) {
+            apts[aptIdx].status = AppointmentStatus.CHECKED_IN;
+            apts[aptIdx].checkedInAt = new Date().toISOString();
+            apts[aptIdx].statusChangedAt = new Date().toISOString();
+            setStorage('appointments', apts);
+          }
+        } catch {}
 
         // In-app alert
         try {
@@ -1826,15 +2221,68 @@ export function handleMockRequest<T>(url: string, method: string = 'GET', body?:
 
     // 6.10 List Visits (with date, officialId, requester, search filters)
     const dateParam = queryParams.get('date');
-    const officialIdParam = queryParams.get('officialId');
+    let officialIdParam = queryParams.get('officialId');
     const requesterParam = queryParams.get('requester')?.toLowerCase().trim();
     const searchParam = queryParams.get('search')?.toLowerCase().trim();
+
+    // Contextual auth user detection
+    const tokenStr = typeof localStorage !== 'undefined' ? (localStorage.getItem('oams_token') || sessionStorage.getItem('oams_token') || '') : '';
+    const personaId = tokenStr.replace('demo-token-', '');
+    let authUser: any = null;
+    if (personaId) {
+      authUser = Object.values(DEMO_PERSONAS).find((p: any) => p.id === personaId);
+      if (!authUser) {
+        const storedUsers = getStorage('users', INITIAL_USERS);
+        authUser = storedUsers.find((u: any) => u.id === personaId);
+      }
+    }
+    if (!authUser && typeof localStorage !== 'undefined') {
+      try {
+        const u = localStorage.getItem('oams_user') || sessionStorage.getItem('oams_user');
+        if (u) authUser = JSON.parse(u);
+      } catch {}
+    }
+
+    const isGlobalReceptionSecurity = authUser && (
+      authUser.roles?.includes('RECEPTION') ||
+      authUser.roles?.includes('SECURITY') ||
+      authUser.roles?.includes('SUPER_ADMIN')
+    );
+
+    if (!officialIdParam && authUser && !isGlobalReceptionSecurity) {
+      if (authUser.officialId) {
+        officialIdParam = authUser.officialId;
+      }
+    }
 
     let filtered = [...visits];
     if (officialIdParam) {
       filtered = filtered.filter(
         (v: any) => v.hostOfficialId === officialIdParam || v.officialId === officialIdParam,
       );
+    } else if (authUser?.assignedOfficialIds && authUser.assignedOfficialIds.length > 0 && !isGlobalReceptionSecurity) {
+      filtered = filtered.filter(
+        (v: any) => authUser.assignedOfficialIds.includes(v.hostOfficialId) || authUser.assignedOfficialIds.includes(v.officialId),
+      );
+    } else if (
+      authUser &&
+      !isGlobalReceptionSecurity &&
+      !authUser.officialId &&
+      (authUser.roles?.includes('GUEST') ||
+        authUser.roles?.includes('CITIZEN') ||
+        authUser.roles?.includes('STUDENT') ||
+        !authUser.roles?.some((r: any) =>
+          ['ADMIN', 'SUPER_ADMIN', 'APPOINTMENT_ADMIN', 'STAFF', 'PA', 'EA', 'FACULTY', 'OFFICIAL', 'RECEPTION', 'SECURITY'].includes(r),
+        ))
+    ) {
+      // Citizen: only their own visit pass
+      filtered = filtered.filter((v: any) => {
+        const email = (v.email || '').toLowerCase();
+        const userEmail = (authUser.email || '').toLowerCase();
+        const name = (v.visitorName || '').toLowerCase();
+        const userName = (authUser.fullName || '').toLowerCase();
+        return (userEmail && email === userEmail) || (userName && name.includes(userName));
+      });
     }
     if (requesterParam) {
       filtered = filtered.filter((v: any) => {

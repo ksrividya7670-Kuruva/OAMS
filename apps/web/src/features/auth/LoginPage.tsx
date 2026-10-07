@@ -12,24 +12,42 @@ import {
   Eye,
   EyeOff,
   UserCheck,
+  User,
+  Phone,
+  Building2,
 } from 'lucide-react';
 import { DEMO_PERSONAS } from '@/lib/mockData';
+import { RoleCode } from '@oams/shared';
 
-export const LoginPage: FC = () => {
+interface LoginPageProps {
+  initialMode?: 'signin' | 'signup';
+}
+
+export const LoginPage: FC<LoginPageProps> = ({ initialMode = 'signin' }) => {
   const navigate = useNavigate();
   const { login, trackLoginAttempt, forgotPassword, resetPassword } = useAuth();
 
   // Mode: 'signin' or 'signup'
-  const [mode, setMode] = useState<'signin' | 'signup'>('signin');
-  const [selectedPersonaKey, setSelectedPersonaKey] = useState<string>('kvk');
+  const [mode, setMode] = useState<'signin' | 'signup'>(initialMode);
 
-  // Input states
+  // Sign In Input states
   const [email, setEmail] = useState('kvk@stmarysgroup.com');
   const [password, setPassword] = useState('password123');
   const [showPassword, setShowPassword] = useState(false);
+  const [isCustomEmail, setIsCustomEmail] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+
+  // Sign Up Input states
+  const [signupFullName, setSignupFullName] = useState('Priya Sharma');
+  const [signupEmail, setSignupEmail] = useState('priya@example.com');
+  const [signupPhone, setSignupPhone] = useState('+91 98765 43210');
+  const [signupOrg, setSignupOrg] = useState('Department of Biotechnology');
+  const [signupCategory, setSignupCategory] = useState<'CITIZEN' | 'STUDENT' | 'FACULTY' | 'DELEGATION'>('CITIZEN');
+  const [signupPassword, setSignupPassword] = useState('password123');
+  const [signupConfirmPassword, setSignupConfirmPassword] = useState('password123');
+  const [signupConsent, setSignupConsent] = useState(true);
 
   // Lockout & Attempt Tracking State
   const [lockoutState, setLockoutState] = useState<{
@@ -56,23 +74,160 @@ export const LoginPage: FC = () => {
     if (mode === 'signin') {
       setEmail('kvk@stmarysgroup.com');
       setPassword('password123');
-    } else if (mode === 'signup') {
-      const persona = DEMO_PERSONAS[selectedPersonaKey] || DEMO_PERSONAS.kvk;
-      setEmail(persona.email);
-      setPassword('password123');
     }
-  }, [mode, selectedPersonaKey]);
+  }, [mode]);
 
-  // Handle Authentication
+  // Handle Authentication / Registration
   const handleAuth = async (e: FormEvent) => {
     e.preventDefault();
     setError(null);
     setSuccessMsg(null);
 
+    // SIGN UP MODE
+    if (mode === 'signup') {
+      if (!signupFullName.trim() || signupFullName.trim().length < 2) {
+        setError('Please enter your full legal or institutional name.');
+        return;
+      }
+      if (!signupEmail.trim() || !signupEmail.includes('@')) {
+        setError('Please provide a valid official email address.');
+        return;
+      }
+      if (signupPassword.length < 8) {
+        setError('Security password must be at least 8 characters in length.');
+        return;
+      }
+      if (signupPassword !== signupConfirmPassword) {
+        setError('Password and confirmation password do not match.');
+        return;
+      }
+      if (!signupConsent) {
+        setError('Please attest to the statutory institutional guidelines.');
+        return;
+      }
+
+      setLoading(true);
+      try {
+        await new Promise((resolve) => setTimeout(resolve, 500));
+        const cleanEmail = signupEmail.trim().toLowerCase();
+
+        const roleTitle =
+          signupCategory === 'STUDENT'
+            ? 'Student Requester'
+            : signupCategory === 'FACULTY'
+            ? 'Faculty Member'
+            : signupCategory === 'DELEGATION'
+            ? 'Protocol Delegation Leader'
+            : 'Citizen Petitioner';
+
+        const roleCode = signupCategory === 'FACULTY' ? RoleCode.FACULTY : RoleCode.GUEST;
+        const initials = signupFullName
+          .split(' ')
+          .filter(Boolean)
+          .map((n) => n[0])
+          .join('')
+          .slice(0, 2)
+          .toUpperCase() || 'UR';
+
+        const newUserId = `usr-reg-${Date.now()}`;
+        const registeredUser = {
+          id: newUserId,
+          email: cleanEmail,
+          fullName: signupFullName.trim(),
+          roleTitle,
+          orgId: 'org-apex-main',
+          roles: [roleCode],
+          officialId: null,
+          assignedOfficialIds: [],
+          phone: signupPhone.trim(),
+          organization: signupOrg.trim(),
+          avatarIcon: initials,
+          status: 'ACTIVE' as const,
+          authProvider: 'LOCAL' as const,
+          timezone: 'Asia/Kolkata',
+          theme: 'SYSTEM' as const,
+        };
+
+        // Persist to user stores
+        localStorage.setItem(`mock_user_${cleanEmail}`, JSON.stringify(registeredUser));
+        localStorage.setItem(`oams_user_pass_${cleanEmail}`, signupPassword);
+        localStorage.setItem('oams_last_requester_email', cleanEmail);
+
+        try {
+          const rawUsers = localStorage.getItem('oams_mock_users');
+          const usersList = rawUsers ? JSON.parse(rawUsers) : [];
+          if (!usersList.some((u: any) => u.email?.toLowerCase() === cleanEmail)) {
+            usersList.unshift(registeredUser);
+            localStorage.setItem('oams_mock_users', JSON.stringify(usersList));
+          }
+        } catch {}
+
+        // Record Audit Event
+        try {
+          const rawAudit = localStorage.getItem('oams_mock_audit_events');
+          const audits = rawAudit ? JSON.parse(rawAudit) : [];
+          audits.unshift({
+            id: `aud-${Date.now()}`,
+            org_id: 'org-apex-main',
+            actor_id: registeredUser.id,
+            actor_role: roleCode,
+            action: 'auth.user_registered',
+            entity_type: 'user',
+            entity_id: registeredUser.id,
+            changes: { email: cleanEmail, category: signupCategory },
+            reason: 'Self-service citizen petitioner registration completed',
+            ip_address: '127.0.0.1',
+            correlation_id: `corr-${Date.now()}`,
+            prev_hash: audits[0]?.hash || '0x9a8b7c6d5e4f3a2b1c0d9e8f7a6b5c4d',
+            hash: '0x' + Array.from({ length: 32 }, () => Math.floor(Math.random() * 16).toString(16)).join(''),
+            occurred_at: new Date().toISOString(),
+          });
+          localStorage.setItem('oams_mock_audit_events', JSON.stringify(audits));
+        } catch {}
+
+        // Add Welcome Notification
+        try {
+          const rawNotifs = localStorage.getItem('oams_mock_notifications');
+          const notifs = rawNotifs ? JSON.parse(rawNotifs) : [];
+          const welcomeNotif = {
+            id: `notif-${Date.now()}`,
+            userId: registeredUser.id,
+            officialId: null,
+            targetRoles: [roleCode],
+            type: 'system_alert',
+            eventType: 'ACCOUNT_ACTIVATED',
+            title: `Welcome to OAMS, ${registeredUser.fullName}!`,
+            message: `Your appointment petitioner coordinates are verified. You can now request an official audience with executive leadership.`,
+            body: `Your appointment petitioner coordinates are verified. You can now request an official audience with executive leadership.`,
+            link: '/request',
+            priority: 'MEDIUM',
+            entityType: 'USER',
+            entityId: registeredUser.id,
+            isRead: false,
+            readAt: null,
+            createdAt: new Date().toISOString(),
+          };
+          notifs.unshift(welcomeNotif);
+          localStorage.setItem('oams_mock_notifications', JSON.stringify(notifs));
+          window.dispatchEvent(new CustomEvent('oams-notifications-updated'));
+        } catch {}
+
+        login(`demo-token-${registeredUser.id}`, registeredUser);
+        navigate('/');
+        return;
+      } catch (err: any) {
+        setError(err.message || 'Registration failed');
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
+
+    // SIGN IN MODE
     const inputClean = email.trim().toLowerCase();
 
     // Check if currently locked out
-    const attemptCheck = trackLoginAttempt(inputClean, true); // check lockout without incrementing
+    const attemptCheck = trackLoginAttempt(inputClean, true);
     if (attemptCheck.lockedOut) {
       setLockoutState(attemptCheck);
       setError(
@@ -84,19 +239,7 @@ export const LoginPage: FC = () => {
     setLoading(true);
 
     try {
-      // Simulate authentic secure network verification
-      await new Promise((resolve) => setTimeout(resolve, 600));
-
-      if (mode === 'signup') {
-        const persona = DEMO_PERSONAS[selectedPersonaKey] || DEMO_PERSONAS.admin;
-        localStorage.setItem(`mock_user_${inputClean}`, JSON.stringify(persona));
-        trackLoginAttempt(inputClean, true);
-        login(`demo-token-${persona.id}`, persona);
-        navigate('/');
-        return;
-      }
-
-      // Admin or Sign-In Mode
+      await new Promise((resolve) => setTimeout(resolve, 500));
       let targetUser: any = null;
 
       if (
@@ -320,94 +463,300 @@ export const LoginPage: FC = () => {
           </div>
         )}
 
-        {/* Main Authentication Form */}
+        {/* Main Authentication / Registration Form */}
         <form onSubmit={handleAuth} className="space-y-3.5">
-          {mode === 'signup' && (
-            <div>
-              <label
-                htmlFor="role-select"
-                className="block text-[11px] font-semibold text-[#16181D] dark:text-slate-200 mb-1"
-              >
-                Institutional Role Assignment
-              </label>
-              <select
-                id="role-select"
-                value={selectedPersonaKey}
-                onChange={(e) => setSelectedPersonaKey(e.target.value)}
-                className="w-full px-3 py-2 text-xs rounded-xl border border-[#D5D2CA] dark:border-[#383E50] bg-white dark:bg-[#202530] text-[#16181D] dark:text-slate-200 focus:outline-none focus:ring-1.5 focus:ring-[#1A3170] cursor-pointer shadow-2xs"
-              >
-                {Object.entries(DEMO_PERSONAS).map(([key, p]) => (
-                  <option key={key} value={key}>
-                    {p.fullName} &bull; {p.roleTitle.split('(')[0].trim()}
-                  </option>
-                ))}
-              </select>
-            </div>
+          {mode === 'signup' ? (
+            <>
+              {/* Quick Prefill Button for evaluators */}
+              <div className="flex items-center justify-between pb-1">
+                <span className="text-[11px] font-semibold text-[#16181D] dark:text-slate-200">
+                  Citizen / Petitioner Details
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSignupFullName('Priya Sharma');
+                    setSignupEmail('priya@example.com');
+                    setSignupPhone('+91 98765 43210');
+                    setSignupOrg('Student Delegate');
+                    setSignupCategory('STUDENT');
+                    setSignupPassword('password123');
+                    setSignupConfirmPassword('password123');
+                    setSignupConsent(true);
+                  }}
+                  className="text-[10px] text-[#2957D6] hover:underline cursor-pointer font-medium"
+                >
+                  Prefill Demo Coordinates
+                </button>
+              </div>
+
+              <div>
+                <label
+                  htmlFor="signup-name"
+                  className="block text-[11px] font-semibold text-[#16181D] dark:text-slate-200 mb-1"
+                >
+                  Full Legal / Institutional Name <span className="text-red-500">*</span>
+                </label>
+                <div className="relative">
+                  <User className="w-3.5 h-3.5 text-[#5B6070] dark:text-slate-400 absolute left-3 top-3" />
+                  <input
+                    id="signup-name"
+                    type="text"
+                    required
+                    value={signupFullName}
+                    onChange={(e) => setSignupFullName(e.target.value)}
+                    placeholder="e.g. Priya Sharma or Dr. Ramesh"
+                    className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-[#D5D2CA] dark:border-[#383E50] bg-white dark:bg-[#202530] text-[#16181D] dark:text-slate-200 focus:outline-none focus:ring-1.5 focus:ring-[#1A3170] shadow-2xs"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label
+                    htmlFor="signup-email"
+                    className="block text-[11px] font-semibold text-[#16181D] dark:text-slate-200 mb-1"
+                  >
+                    Official Email <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <Mail className="w-3.5 h-3.5 text-[#5B6070] dark:text-slate-400 absolute left-3 top-3" />
+                    <input
+                      id="signup-email"
+                      type="email"
+                      required
+                      value={signupEmail}
+                      onChange={(e) => setSignupEmail(e.target.value)}
+                      placeholder="name@example.com"
+                      className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-[#D5D2CA] dark:border-[#383E50] bg-white dark:bg-[#202530] text-[#16181D] dark:text-slate-200 focus:outline-none focus:ring-1.5 focus:ring-[#1A3170] shadow-2xs"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label
+                    htmlFor="signup-phone"
+                    className="block text-[11px] font-semibold text-[#16181D] dark:text-slate-200 mb-1"
+                  >
+                    Phone / Mobile <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <Phone className="w-3.5 h-3.5 text-[#5B6070] dark:text-slate-400 absolute left-3 top-3" />
+                    <input
+                      id="signup-phone"
+                      type="tel"
+                      required
+                      value={signupPhone}
+                      onChange={(e) => setSignupPhone(e.target.value)}
+                      placeholder="+91 98765 43210"
+                      className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-[#D5D2CA] dark:border-[#383E50] bg-white dark:bg-[#202530] text-[#16181D] dark:text-slate-200 focus:outline-none focus:ring-1.5 focus:ring-[#1A3170] shadow-2xs"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label
+                    htmlFor="signup-org"
+                    className="block text-[11px] font-semibold text-[#16181D] dark:text-slate-200 mb-1"
+                  >
+                    Organization / Dept
+                  </label>
+                  <div className="relative">
+                    <Building2 className="w-3.5 h-3.5 text-[#5B6070] dark:text-slate-400 absolute left-3 top-3" />
+                    <input
+                      id="signup-org"
+                      type="text"
+                      value={signupOrg}
+                      onChange={(e) => setSignupOrg(e.target.value)}
+                      placeholder="e.g. Dept of Biotechnology"
+                      className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-[#D5D2CA] dark:border-[#383E50] bg-white dark:bg-[#202530] text-[#16181D] dark:text-slate-200 focus:outline-none focus:ring-1.5 focus:ring-[#1A3170] shadow-2xs"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label
+                    htmlFor="signup-cat"
+                    className="block text-[11px] font-semibold text-[#16181D] dark:text-slate-200 mb-1"
+                  >
+                    Classification Tier
+                  </label>
+                  <select
+                    id="signup-cat"
+                    value={signupCategory}
+                    onChange={(e) => setSignupCategory(e.target.value as any)}
+                    className="w-full px-3 py-2 text-xs rounded-xl border border-[#D5D2CA] dark:border-[#383E50] bg-white dark:bg-[#202530] text-[#16181D] dark:text-slate-200 focus:outline-none focus:ring-1.5 focus:ring-[#1A3170] cursor-pointer shadow-2xs"
+                  >
+                    <option value="CITIZEN">Citizen / Public Petitioner</option>
+                    <option value="STUDENT">Student / Scholar</option>
+                    <option value="FACULTY">Faculty Member / Academic</option>
+                    <option value="DELEGATION">Corporate Delegation</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label
+                    htmlFor="signup-pwd"
+                    className="block text-[11px] font-semibold text-[#16181D] dark:text-slate-200 mb-1"
+                  >
+                    Password (8+ chars) <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <KeyRound className="w-3.5 h-3.5 text-[#5B6070] dark:text-slate-400 absolute left-3 top-3" />
+                    <input
+                      id="signup-pwd"
+                      type={showPassword ? 'text' : 'password'}
+                      required
+                      value={signupPassword}
+                      onChange={(e) => setSignupPassword(e.target.value)}
+                      placeholder="••••••••••••"
+                      className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-[#D5D2CA] dark:border-[#383E50] bg-white dark:bg-[#202530] text-[#16181D] dark:text-slate-200 focus:outline-none focus:ring-1.5 focus:ring-[#1A3170] shadow-2xs font-mono"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label
+                    htmlFor="signup-cpwd"
+                    className="block text-[11px] font-semibold text-[#16181D] dark:text-slate-200 mb-1"
+                  >
+                    Confirm Password <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <Lock className="w-3.5 h-3.5 text-[#5B6070] dark:text-slate-400 absolute left-3 top-3" />
+                    <input
+                      id="signup-cpwd"
+                      type={showPassword ? 'text' : 'password'}
+                      required
+                      value={signupConfirmPassword}
+                      onChange={(e) => setSignupConfirmPassword(e.target.value)}
+                      placeholder="••••••••••••"
+                      className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-[#D5D2CA] dark:border-[#383E50] bg-white dark:bg-[#202530] text-[#16181D] dark:text-slate-200 focus:outline-none focus:ring-1.5 focus:ring-[#1A3170] shadow-2xs font-mono"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-2 pt-1">
+                <input
+                  id="signup-consent"
+                  type="checkbox"
+                  checked={signupConsent}
+                  onChange={(e) => setSignupConsent(e.target.checked)}
+                  className="mt-0.5 rounded border-[#D5D2CA] text-[#1A3170] focus:ring-[#1A3170] cursor-pointer"
+                />
+                <label
+                  htmlFor="signup-consent"
+                  className="text-[11px] text-[#5B6070] dark:text-slate-300 leading-tight cursor-pointer"
+                >
+                  I attest that the information provided is accurate and agree to official appointment protocol guidelines.
+                </label>
+              </div>
+            </>
+          ) : (
+            <>
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label
+                    htmlFor="email-select"
+                    className="block text-[11px] font-semibold text-[#16181D] dark:text-slate-200"
+                  >
+                    Official Email / Account
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setIsCustomEmail(!isCustomEmail)}
+                    className="text-[10px] text-[#2957D6] hover:underline cursor-pointer font-medium"
+                  >
+                    {isCustomEmail ? 'Choose Official Email' : 'Custom Email'}
+                  </button>
+                </div>
+
+                {!isCustomEmail ? (
+                  <div className="relative">
+                    <Mail className="w-3.5 h-3.5 text-[#5B6070] dark:text-slate-400 absolute left-3 top-3 pointer-events-none" />
+                    <select
+                      id="email-select"
+                      value={email}
+                      onChange={(e) => {
+                        setEmail(e.target.value);
+                        setPassword('password123');
+                        if (error) setError(null);
+                      }}
+                      className="w-full pl-9 pr-8 py-2 text-xs rounded-xl border border-[#D5D2CA] dark:border-[#383E50] bg-white dark:bg-[#202530] text-[#16181D] dark:text-slate-200 focus:outline-none focus:ring-1.5 focus:ring-[#1A3170] shadow-2xs cursor-pointer font-medium"
+                    >
+                      <option value="kvk@stmarysgroup.com">kvk@stmarysgroup.com — Mr. KVK (Official)</option>
+                      <option value="harsha@stmarysgroup.com">harsha@stmarysgroup.com — Mr. Harsha Rao (CEO)</option>
+                      <option value="vc@stmarysgroup.com">vc@stmarysgroup.com — Prof. Vice Chancellor (VC)</option>
+                      <option value="bharathi@stmarysgroup.com">bharathi@stmarysgroup.com — Ms. Bharathi (President)</option>
+                      <option value="indhu@stmarysgroup.com">indhu@stmarysgroup.com — Ms. Indhu (Joint Secretary)</option>
+                      <option value="janardhan@stmarysgroup.com">janardhan@stmarysgroup.com — Mr. Janardhan (Vice Principal / Admin)</option>
+                    </select>
+                  </div>
+                ) : (
+                  <div className="relative">
+                    <Mail className="w-3.5 h-3.5 text-[#5B6070] dark:text-slate-400 absolute left-3 top-3" />
+                    <input
+                      id="email"
+                      type="text"
+                      required
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="username@stmarysgroup.com"
+                      className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-[#D5D2CA] dark:border-[#383E50] bg-white dark:bg-[#202530] text-[#16181D] dark:text-slate-200 focus:outline-none focus:ring-1.5 focus:ring-[#1A3170] shadow-2xs"
+                    />
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label
+                    htmlFor="password"
+                    className="block text-[11px] font-semibold text-[#16181D] dark:text-slate-200"
+                  >
+                    Security Password
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setForgotError(null);
+                      setForgotSuccess(null);
+                      setForgotStep(1);
+                      setRecoveryEmail(email);
+                      setShowForgotModal(true);
+                    }}
+                    className="text-[11px] text-[#2957D6] hover:underline cursor-pointer"
+                  >
+                    Forgot Password?
+                  </button>
+                </div>
+                <div className="relative">
+                  <KeyRound className="w-3.5 h-3.5 text-[#5B6070] dark:text-slate-400 absolute left-3 top-3" />
+                  <input
+                    id="password"
+                    type={showPassword ? 'text' : 'password'}
+                    required
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="••••••••••••"
+                    className="w-full pl-9 pr-9 py-2 text-xs rounded-xl border border-[#D5D2CA] dark:border-[#383E50] bg-white dark:bg-[#202530] text-[#16181D] dark:text-slate-200 focus:outline-none focus:ring-1.5 focus:ring-[#1A3170] shadow-2xs font-mono"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-2.5 text-[#8C909C] hover:text-[#16181D] dark:hover:text-white cursor-pointer"
+                  >
+                    {showPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                  </button>
+                </div>
+              </div>
+            </>
           )}
-
-          <div>
-            <label
-              htmlFor="email"
-              className="block text-[11px] font-semibold text-[#16181D] dark:text-slate-200 mb-1"
-            >
-              Email Address or Username
-            </label>
-            <div className="relative">
-              <Mail className="w-3.5 h-3.5 text-[#5B6070] dark:text-slate-400 absolute left-3 top-3" />
-              <input
-                id="email"
-                type="text"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="username@stmarysgroup.com"
-                className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-[#D5D2CA] dark:border-[#383E50] bg-white dark:bg-[#202530] text-[#16181D] dark:text-slate-200 focus:outline-none focus:ring-1.5 focus:ring-[#1A3170] shadow-2xs"
-              />
-            </div>
-          </div>
-
-          <div>
-            <div className="flex items-center justify-between mb-1">
-              <label
-                htmlFor="password"
-                className="block text-[11px] font-semibold text-[#16181D] dark:text-slate-200"
-              >
-                Security Password
-              </label>
-              <button
-                type="button"
-                onClick={() => {
-                  setForgotError(null);
-                  setForgotSuccess(null);
-                  setForgotStep(1);
-                  setRecoveryEmail(email);
-                  setShowForgotModal(true);
-                }}
-                className="text-[11px] text-[#2957D6] hover:underline cursor-pointer"
-              >
-                Forgot Password?
-              </button>
-            </div>
-            <div className="relative">
-              <KeyRound className="w-3.5 h-3.5 text-[#5B6070] dark:text-slate-400 absolute left-3 top-3" />
-              <input
-                id="password"
-                type={showPassword ? 'text' : 'password'}
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••••••"
-                className="w-full pl-9 pr-9 py-2 text-xs rounded-xl border border-[#D5D2CA] dark:border-[#383E50] bg-white dark:bg-[#202530] text-[#16181D] dark:text-slate-200 focus:outline-none focus:ring-1.5 focus:ring-[#1A3170] shadow-2xs font-mono"
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-2.5 text-[#8C909C] hover:text-[#16181D] dark:hover:text-white cursor-pointer"
-              >
-                {showPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-              </button>
-            </div>
-          </div>
 
           <button
             type="submit"
@@ -417,7 +766,7 @@ export const LoginPage: FC = () => {
             {loading ? (
               <Loader2 className="w-4 h-4 animate-spin" />
             ) : mode === 'signup' ? (
-              'Create Account & Login'
+              'Create Account & Sign In'
             ) : (
               'Sign In Securely'
             )}

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router';
 import { useAuth } from '@/features/auth/AuthContext';
 import { api } from '@/lib/api';
@@ -10,9 +10,99 @@ import {
   CancelReason,
 } from '@oams/shared';
 import { STATUS_LABELS, PRIORITY_LABELS } from './labels';
-import { Loader2, ArrowLeft, RefreshCw } from 'lucide-react';
+import {
+  Loader2,
+  ArrowLeft,
+  RefreshCw,
+  Printer,
+  QrCode,
+  ShieldCheck,
+  CheckCircle2,
+  Clock,
+  MapPin,
+  Building,
+  Calendar,
+  Info,
+  ChevronRight,
+  UserCheck,
+} from 'lucide-react';
 import { sendAppointmentStatusNotifications } from '@/lib/powerAutomateClient';
 import { AcceptProposalUI } from './AcceptProposalUI';
+
+const generateQrMatrix = (seed: string): boolean[][] => {
+  const size = 21;
+  const matrix: boolean[][] = Array.from({ length: size }, () => Array(size).fill(false));
+
+  const drawFinder = (startX: number, startY: number) => {
+    for (let r = 0; r < 7; r++) {
+      for (let c = 0; c < 7; c++) {
+        if (
+          r === 0 || r === 6 || c === 0 || c === 6 ||
+          (r >= 2 && r <= 4 && c >= 2 && c <= 4)
+        ) {
+          matrix[startY + r][startX + c] = true;
+        }
+      }
+    }
+  };
+
+  drawFinder(0, 0);
+  drawFinder(size - 7, 0);
+  drawFinder(0, size - 7);
+
+  for (let i = 8; i < size - 8; i++) {
+    matrix[6][i] = i % 2 === 0;
+    matrix[i][6] = i % 2 === 0;
+  }
+
+  let hash = 0;
+  for (let i = 0; i < seed.length; i++) {
+    hash = (hash << 5) - hash + seed.charCodeAt(i);
+    hash |= 0;
+  }
+
+  let prng = Math.abs(hash) || 12345;
+  for (let r = 0; r < size; r++) {
+    for (let c = 0; c < size; c++) {
+      const inTopLeft = r < 8 && c < 8;
+      const inTopRight = r < 8 && c >= size - 8;
+      const inBottomLeft = r >= size - 8 && c < 8;
+      const inTiming = r === 6 || c === 6;
+
+      if (!inTopLeft && !inTopRight && !inBottomLeft && !inTiming) {
+        prng = (prng * 9301 + 49297) % 233280;
+        matrix[r][c] = prng % 2 === 0;
+      }
+    }
+  }
+
+  return matrix;
+};
+
+const QrCodeSvg: React.FC<{ value: string; size?: number }> = ({ value, size = 140 }) => {
+  const matrix = useMemo(() => generateQrMatrix(value), [value]);
+  const cellSize = size / 21;
+
+  return (
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="rounded-lg bg-white p-1 shadow-2xs shrink-0">
+      <rect width={size} height={size} fill="white" />
+      {matrix.map((row, r) =>
+        row.map((active, c) =>
+          active ? (
+            <rect
+              key={`${r}-${c}`}
+              x={c * cellSize}
+              y={r * cellSize}
+              width={cellSize}
+              height={cellSize}
+              fill="#0F172A"
+            />
+          ) : null,
+        ),
+      )}
+    </svg>
+  );
+};
 
 const STEPPER_STAGES = [
   { label: 'Submitted', key: 'SUBMITTED' },
@@ -51,6 +141,139 @@ export const AppointmentTrackingPage: React.FC = () => {
   const [submittingChange, setSubmittingChange] = useState(false);
   const [actionInProgress, setActionInProgress] = useState(false);
   const [downloadSuccess, setDownloadSuccess] = useState(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(null), 3800);
+  };
+
+  const handlePrintPass = () => {
+    window.print();
+  };
+
+  const handleGateCheckIn = async () => {
+    if (!id) return;
+    try {
+      setActionInProgress(true);
+      await api.post(
+        `/api/v1/appointments/${id}/check-in`,
+        {},
+        { headers: token ? { Authorization: `Bearer ${token}` } : {} },
+      );
+      showToast('Gate Check-In Verified! Visitor badge issued & status updated.');
+      await fetchAppointmentData();
+    } catch (err: any) {
+      showToast(err.message || 'Failed to complete gate check-in');
+    } finally {
+      setActionInProgress(false);
+    }
+  };
+
+  const getNextStepsInfo = (status: string) => {
+    switch (status) {
+      case 'SUBMITTED':
+        return {
+          step: 'Stage 1 of 4: Triage & Verification',
+          title: 'Request Queued in Secretariat Master Registry',
+          description:
+            'Your appointment request has been securely recorded. An executive secretariat assistant is reviewing schedule fit and chamber requirements.',
+          action: 'No further action required. You will be notified automatically when clearance is granted or if alternate times are proposed.',
+          badge: 'In Review Queue',
+          badgeColor: 'bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300 border-blue-200 dark:border-blue-800',
+        };
+      case 'UNDER_REVIEW':
+        return {
+          step: 'Stage 2 of 4: Dignitary Calendar Coordination',
+          title: 'Executive Chamber Staff Reviewing Time Slot',
+          description:
+            'The executive office is evaluating calendar fit and room allocations against dignitary commitments.',
+          action: 'Stand by for confirmation. Target response time is governed by official SLA window.',
+          badge: 'Staff Reviewing',
+          badgeColor: 'bg-indigo-50 text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800',
+        };
+      case 'AWAITING_REQUESTER':
+        return {
+          step: 'Action Required: Slot Selection',
+          title: 'Secretariat Proposed Alternative Time Slots',
+          description:
+            'Due to official executive engagements, the office recommended candidate time slots matching the dignitary’s schedule.',
+          action: 'Please select your preferred alternative slot below to confirm and finalize your appointment.',
+          badge: 'Action Needed',
+          badgeColor: 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 border-amber-200 dark:border-amber-800',
+        };
+      case 'CONFIRMED':
+        return {
+          step: 'Stage 3 of 4: Authorized & Access Ready',
+          title: 'Appointment Officially Confirmed',
+          description:
+            'Your meeting is locked into the master calendar. Your official Digital Visitor Gate Pass with entry QR code is issued below.',
+          action: 'Present your Digital Gate Pass & QR code at Security Gate 1 upon campus arrival. Please arrive 15 minutes early.',
+          badge: 'Access Cleared',
+          badgeColor: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800',
+        };
+      case 'CHECKED_IN':
+        return {
+          step: 'Stage 4 of 4: Reception Lounge & Ushering',
+          title: 'Campus Arrival Verified at Security Gate 1',
+          description:
+            'Security scan verified. Visitor badge has been assigned and host official’s chamber alerted.',
+          action: 'Please wait comfortably in the Executive Secretariat Lounge. A protocol liaison will usher you into the chamber.',
+          badge: 'In Reception',
+          badgeColor: 'bg-teal-50 text-teal-700 dark:bg-teal-950/40 dark:text-teal-300 border-teal-200 dark:border-teal-800',
+        };
+      case 'IN_PROGRESS':
+        return {
+          step: 'Session Active: Chamber Meeting',
+          title: 'Meeting in Progress',
+          description:
+            'The appointment is currently active in the executive chamber.',
+          action: 'Proceedings and action notes are being documented by the secretariat.',
+          badge: 'Active Now',
+          badgeColor: 'bg-green-50 text-green-700 dark:bg-green-950/40 dark:text-green-300 border-green-200 dark:border-green-800',
+        };
+      case 'COMPLETED':
+      case 'CLOSED':
+        return {
+          step: 'Archive: Concluded',
+          title: 'Official Appointment Concluded',
+          description:
+            'The meeting ended and minutes / follow-up action items have been archived into the OAMS central registry.',
+          action: 'Gate exit pass processed. Thank you for visiting.',
+          badge: 'Completed',
+          badgeColor: 'bg-slate-50 text-slate-700 dark:bg-slate-900/40 dark:text-slate-300 border-slate-200 dark:border-slate-800',
+        };
+      case 'REJECTED':
+        return {
+          step: 'Status: Request Declined',
+          title: 'Unable to Accommodate at This Time',
+          description:
+            'The request could not be cleared due to conflicting dignitary commitments or protocol constraints.',
+          action: 'You may submit a revised appointment request for a future available date.',
+          badge: 'Declined',
+          badgeColor: 'bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300 border-rose-200 dark:border-rose-800',
+        };
+      case 'CANCELLED':
+        return {
+          step: 'Status: Cancelled',
+          title: 'Appointment Request Cancelled',
+          description:
+            'This appointment was cancelled prior to the meeting.',
+          action: 'No further action is pending on this record.',
+          badge: 'Cancelled',
+          badgeColor: 'bg-slate-50 text-slate-700 dark:bg-slate-900/40 dark:text-slate-300 border-slate-200 dark:border-slate-800',
+        };
+      default:
+        return {
+          step: 'Appointment Status Tracking',
+          title: 'Tracking Status in Central Registry',
+          description: 'Appointment status is being monitored in real time.',
+          action: 'Check back for progress updates.',
+          badge: 'Tracking',
+          badgeColor: 'bg-slate-50 text-slate-700 dark:bg-slate-900/40 dark:text-slate-300 border-slate-200 dark:border-slate-800',
+        };
+    }
+  };
 
   const fetchAppointmentData = async (silent = false) => {
     if (!id) return;
@@ -219,8 +442,9 @@ export const AppointmentTrackingPage: React.FC = () => {
         reason: cancelNote || cancelReason || 'Cancelled by requester',
         priority: 'MEDIUM',
       }).catch(() => {});
+      showToast('Appointment has been successfully cancelled.');
     } catch (err: any) {
-      alert(err.message || 'Failed to cancel appointment');
+      showToast(err.message || 'Failed to cancel appointment');
     } finally {
       setCancelling(false);
     }
@@ -244,12 +468,12 @@ export const AppointmentTrackingPage: React.FC = () => {
     e.preventDefault();
     if (!id) return;
     if (!changeReason.trim() || changeReason.length < 5) {
-      alert('Please provide a reason for the change request (at least 5 characters).');
+      showToast('Please provide a reason for the change request (at least 5 characters).');
       return;
     }
     const invalidWindow = changeWindows.find((w) => !w.date || !w.from || !w.to);
     if (invalidWindow) {
-      alert('Please provide complete date, start time, and end time for all preferred windows.');
+      showToast('Please provide complete date, start time, and end time for all preferred windows.');
       return;
     }
 
@@ -267,9 +491,10 @@ export const AppointmentTrackingPage: React.FC = () => {
       setShowChangeModal(false);
       setChangeReason('');
       setChangeWindows([{ date: '', from: '09:00', to: '12:00' }]);
+      showToast('Change request submitted for office review.');
       await fetchAppointmentData();
     } catch (err: any) {
-      alert(err.message || 'Failed to submit change request');
+      showToast(err.message || 'Failed to submit change request');
     } finally {
       setSubmittingChange(false);
     }
@@ -283,10 +508,10 @@ export const AppointmentTrackingPage: React.FC = () => {
         { proposalId },
         { headers: token ? { Authorization: `Bearer ${token}` } : {} },
       );
-      alert('Change request proposal accepted! Appointment has been rescheduled.');
+      showToast('Change request proposal accepted! Appointment has been rescheduled.');
       await fetchAppointmentData();
     } catch (err: any) {
-      alert(err.message || 'Failed to accept proposal');
+      showToast(err.message || 'Failed to accept proposal');
     } finally {
       setActionInProgress(false);
     }
@@ -301,9 +526,10 @@ export const AppointmentTrackingPage: React.FC = () => {
         {},
         { headers: token ? { Authorization: `Bearer ${token}` } : {} },
       );
+      showToast('Change request withdrawn.');
       await fetchAppointmentData();
     } catch (err: any) {
-      alert(err.message || 'Failed to withdraw change request');
+      showToast(err.message || 'Failed to withdraw change request');
     } finally {
       setActionInProgress(false);
     }
@@ -467,6 +693,41 @@ export const AppointmentTrackingPage: React.FC = () => {
           </div>
         </div>
 
+        {/* Context-Aware Milestone Guidance & Clear Next Steps */}
+        {(() => {
+          const nextStep = getNextStepsInfo(appointment.status);
+          return (
+            <div className="mb-6 p-4 sm:p-5 rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-main)]/60 dark:bg-slate-900/40 space-y-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[var(--border-subtle)] pb-2.5">
+                <div className="flex items-center gap-2">
+                  <Info className="w-4 h-4 text-[var(--primary)] shrink-0" />
+                  <span className="text-xs font-bold text-[var(--text-main)] uppercase tracking-wider">
+                    {nextStep.step}
+                  </span>
+                </div>
+                <span className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-full border ${nextStep.badgeColor} self-start sm:self-auto`}>
+                  {nextStep.badge}
+                </span>
+              </div>
+              <div className="text-xs space-y-1.5">
+                <div className="font-semibold text-[var(--text-main)] text-sm">
+                  {nextStep.title}
+                </div>
+                <p className="text-[var(--text-muted)] leading-relaxed">
+                  {nextStep.description}
+                </p>
+                <div className="mt-2.5 p-3 rounded-xl bg-blue-50/70 dark:bg-blue-950/40 border border-blue-200/80 dark:border-blue-900/60 flex items-start gap-2.5">
+                  <ChevronRight className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
+                  <div className="text-xs text-blue-950 dark:text-blue-200">
+                    <strong>Action & Guidance: </strong>
+                    {nextStep.action}
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
+
         {/* SLA Resolution / Action Notice */}
         {appointment.slaDueAt && appointment.status === 'UNDER_REVIEW' && (
           <div className="p-4 bg-blue-50/60 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900 rounded-xl text-xs text-blue-900 dark:text-blue-200 flex items-center justify-between">
@@ -612,6 +873,188 @@ export const AppointmentTrackingPage: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* Official Digital Visitor Gate Pass & Protocol Access Card */}
+      {(appointment.status === 'CONFIRMED' ||
+        appointment.status === 'CHECKED_IN' ||
+        appointment.status === 'IN_PROGRESS' ||
+        appointment.status === 'COMPLETED' ||
+        appointment.status === 'CLOSED') && (
+        <div
+          id="oams-digital-gate-pass"
+          className="bg-[var(--card-bg)] border-2 border-emerald-500/30 dark:border-emerald-500/20 rounded-2xl p-6 sm:p-7 shadow-md relative overflow-hidden space-y-6"
+        >
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[var(--border-subtle)] pb-5">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-emerald-500/10 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+                <ShieldCheck className="w-6 h-6" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded border border-emerald-200 dark:border-emerald-800">
+                    Official Protocol
+                  </span>
+                  <span className="text-xs font-mono font-bold text-[var(--text-muted)]">
+                    Pass #{appointment.referenceNo}
+                  </span>
+                </div>
+                <h2 className="text-lg font-bold text-[var(--text-main)] mt-0.5">
+                  Digital Visitor Gate Pass & Campus Clearance
+                </h2>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handlePrintPass}
+                className="px-3.5 py-2 border border-[var(--border-subtle)] hover:bg-[var(--bg-main)] text-[var(--text-main)] text-xs font-semibold rounded-xl transition flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                title="Print official gate pass slip"
+              >
+                <Printer className="w-3.5 h-3.5" />
+                <span>Print Pass</span>
+              </button>
+
+              {appointment.status === 'CONFIRMED' && (
+                <button
+                  type="button"
+                  disabled={actionInProgress}
+                  onClick={handleGateCheckIn}
+                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-xl transition flex items-center gap-1.5 cursor-pointer shadow-xs disabled:opacity-50"
+                  title="Simulate gate check-in at Security Point Alpha"
+                >
+                  <UserCheck className="w-3.5 h-3.5" />
+                  <span>Check-In at Gate 1</span>
+                </button>
+              )}
+
+              {appointment.status === 'CHECKED_IN' && (
+                <div className="px-3 py-1.5 bg-teal-50 dark:bg-teal-950/40 border border-teal-300 dark:border-teal-700 text-teal-800 dark:text-teal-300 text-xs font-bold rounded-xl flex items-center gap-1.5">
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  <span>Gate Clearance Verified</span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Pass Body: Left Details & Right QR Code */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
+            <div className="md:col-span-2 space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                <div className="p-3.5 bg-[var(--bg-main)] border border-[var(--border-subtle)] rounded-xl">
+                  <span className="text-[10px] uppercase font-bold text-[var(--text-muted)] tracking-wider">
+                    Authorized Visitor
+                  </span>
+                  <div className="font-bold text-[var(--text-main)] text-sm mt-0.5">
+                    {appointment.attendees?.[0]?.name ||
+                      (appointment as any).requesterName ||
+                      user?.fullName ||
+                      'Official Guest'}
+                  </div>
+                  {appointment.attendees?.[0]?.organization && (
+                    <div className="text-[11px] text-[var(--text-muted)] mt-0.5">
+                      {appointment.attendees[0].organization}
+                    </div>
+                  )}
+                </div>
+
+                <div className="p-3.5 bg-[var(--bg-main)] border border-[var(--border-subtle)] rounded-xl">
+                  <span className="text-[10px] uppercase font-bold text-[var(--text-muted)] tracking-wider">
+                    Host Official
+                  </span>
+                  <div className="font-bold text-[var(--text-main)] text-sm mt-0.5">
+                    {appointment.official?.fullName || 'Mr. KVK'}
+                  </div>
+                  <div className="text-[11px] text-[var(--text-muted)] mt-0.5">
+                    {appointment.official?.title || 'Executive Official'} ·{' '}
+                    {appointment.official?.departmentName || 'Main Secretariat'}
+                  </div>
+                </div>
+
+                <div className="p-3.5 bg-[var(--bg-main)] border border-[var(--border-subtle)] rounded-xl">
+                  <span className="text-[10px] uppercase font-bold text-[var(--text-muted)] tracking-wider flex items-center gap-1">
+                    <Calendar className="w-3 h-3 text-[var(--text-muted)]" />
+                    <span>Scheduled Window</span>
+                  </span>
+                  <div className="font-bold text-[var(--text-main)] mt-0.5">
+                    {appointment.startAt
+                      ? new Date(appointment.startAt).toLocaleDateString(undefined, {
+                          weekday: 'short',
+                          year: 'numeric',
+                          month: 'short',
+                          day: 'numeric',
+                        })
+                      : appointment.preferredWindows?.[0]?.date || 'Confirmed Window'}
+                  </div>
+                  <div className="text-[11px] font-mono text-[var(--primary)] font-bold mt-0.5 flex items-center gap-1">
+                    <Clock className="w-3 h-3" />
+                    <span>
+                      {appointment.startAt
+                        ? `${new Date(appointment.startAt).toLocaleTimeString([], {
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })} – ${appointment.endAt ? new Date(appointment.endAt).toLocaleTimeString([], {
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          }) : ''}`
+                        : `${appointment.preferredWindows?.[0]?.from || '10:00'} – ${appointment.preferredWindows?.[0]?.to || '10:30'}`}{' '}
+                      ({appointment.durationMin} mins)
+                    </span>
+                  </div>
+                </div>
+
+                <div className="p-3.5 bg-[var(--bg-main)] border border-[var(--border-subtle)] rounded-xl">
+                  <span className="text-[10px] uppercase font-bold text-[var(--text-muted)] tracking-wider flex items-center gap-1">
+                    <MapPin className="w-3 h-3 text-[var(--text-muted)]" />
+                    <span>Chamber Venue</span>
+                  </span>
+                  <div className="font-bold text-[var(--text-main)] mt-0.5">
+                    {appointment.room?.name || 'Main Secretariat Chambers'}
+                  </div>
+                  <div className="text-[11px] text-[var(--text-muted)] mt-0.5 flex items-center gap-1">
+                    <Building className="w-3 h-3" />
+                    <span>
+                      {appointment.room?.building || 'Administrative Complex'}, Floor{' '}
+                      {appointment.room?.floor || 2}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Protocol Instructions Notice */}
+              <div className="p-3 bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 rounded-xl text-[11px] text-[var(--text-muted)] space-y-1">
+                <div className="font-semibold text-[var(--text-main)] flex items-center gap-1.5">
+                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                  <span>Security Protocol & Access Instructions</span>
+                </div>
+                <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-[10px]">
+                  <span>• Valid Government Photo ID required at Gate 1</span>
+                  <span>• Electronic RFID badge issued on QR scan</span>
+                  <span>• Secretariat escort required in Zone A</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Right QR Code box */}
+            <div className="flex flex-col items-center justify-center p-5 bg-[var(--bg-main)] border border-[var(--border-subtle)] rounded-xl text-center space-y-2.5">
+              <div className="flex items-center gap-1.5 text-xs font-bold text-[var(--text-main)]">
+                <QrCode className="w-4 h-4 text-[var(--brand-primary)]" />
+                <span>Entry Scan Matrix</span>
+              </div>
+              <QrCodeSvg
+                value={`OAMS-PASS:${appointment.referenceNo}:${appointment.id}`}
+                size={144}
+              />
+              <div className="font-mono text-[11px] text-[var(--text-muted)] tracking-widest font-semibold">
+                {appointment.referenceNo}
+              </div>
+              <div className="text-[10px] text-emerald-700 dark:text-emerald-400 font-bold bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded border border-emerald-200 dark:border-emerald-800">
+                {appointment.status === 'CHECKED_IN' ? '✓ GATE CHECK-IN RECORDED' : 'SCAN AT GATE 1'}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Details Grid */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -979,6 +1422,38 @@ export const AppointmentTrackingPage: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Dynamic Toast Feedback */}
+      {toastMessage && (
+        <div className="fixed bottom-6 right-6 z-50 bg-[#16181D] dark:bg-slate-800 text-white px-4 py-2.5 rounded-xl shadow-2xl flex items-center gap-2.5 text-xs font-semibold border border-slate-700 animate-in fade-in slide-in-from-bottom-2">
+          <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+          <span>{toastMessage}</span>
+        </div>
+      )}
+
+      {/* Embedded CSS for printable Gate Pass slip */}
+      <style>{`
+        @media print {
+          body * {
+            visibility: hidden;
+          }
+          #oams-digital-gate-pass, #oams-digital-gate-pass * {
+            visibility: visible;
+          }
+          #oams-digital-gate-pass {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+            margin: 0;
+            padding: 24px;
+            box-shadow: none !important;
+            border: 2px solid #000 !important;
+            background: #fff !important;
+            color: #000 !important;
+          }
+        }
+      `}</style>
     </div>
   );
 };

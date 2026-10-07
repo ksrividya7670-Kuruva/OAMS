@@ -47,7 +47,7 @@ export interface OfficialPortfolio {
 
 export const OFFICIAL_PORTFOLIOS: OfficialPortfolio[] = [
   {
-    id: 'off-kvk',
+    id: 'off-1',
     name: 'Mr. KVK',
     initials: 'KVK',
     roleTitle: 'Official',
@@ -57,7 +57,7 @@ export const OFFICIAL_PORTFOLIOS: OfficialPortfolio[] = [
     avatarBg: 'bg-[#1A3170] text-white',
   },
   {
-    id: 'off-harsha',
+    id: 'off-2',
     name: 'Mr. Harsha Rao',
     initials: 'HR',
     roleTitle: 'Chief Executive Officer',
@@ -67,7 +67,7 @@ export const OFFICIAL_PORTFOLIOS: OfficialPortfolio[] = [
     avatarBg: 'bg-[#1E3A8A] text-white',
   },
   {
-    id: 'off-vc',
+    id: 'off-3',
     name: 'Prof. Vice Chancellor',
     initials: 'VC',
     roleTitle: 'Vice Chancellor',
@@ -77,7 +77,7 @@ export const OFFICIAL_PORTFOLIOS: OfficialPortfolio[] = [
     avatarBg: 'bg-[#312E81] text-white',
   },
   {
-    id: 'off-bharathi',
+    id: 'off-4',
     name: 'Ms. Bharathi',
     initials: 'MB',
     roleTitle: 'President',
@@ -87,7 +87,7 @@ export const OFFICIAL_PORTFOLIOS: OfficialPortfolio[] = [
     avatarBg: 'bg-[#4B5563] text-white',
   },
   {
-    id: 'off-indhu',
+    id: 'off-5',
     name: 'Ms. Indhu',
     initials: 'MI',
     roleTitle: 'Joint Secretary',
@@ -97,7 +97,7 @@ export const OFFICIAL_PORTFOLIOS: OfficialPortfolio[] = [
     avatarBg: 'bg-[#0F766E] text-white',
   },
   {
-    id: 'off-janardhan',
+    id: 'off-6',
     name: 'Mr. Janardhan',
     initials: 'MJ',
     roleTitle: 'Vice Principal / Admin',

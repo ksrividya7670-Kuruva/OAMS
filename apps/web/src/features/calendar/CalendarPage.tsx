@@ -247,8 +247,22 @@ export const CalendarPage: FC = () => {
   });
 
   const isSuperAdmin = hasRole(RoleCode.SUPER_ADMIN);
-  const isOfficial = hasRole(RoleCode.OFFICIAL);
+  const isOfficial = Boolean(
+    user?.officialId || hasRole(RoleCode.OFFICIAL) || hasRole(RoleCode.FACULTY),
+  );
   const isPA = hasRole(RoleCode.PA) || hasRole(RoleCode.EA);
+  const isCitizen =
+    !user?.officialId &&
+    (!user?.roles ||
+      user.roles.includes(RoleCode.GUEST) ||
+      (user.roles as any).includes('CITIZEN') ||
+      (user.roles as any).includes('STUDENT')) &&
+    !isSuperAdmin &&
+    !isOfficial &&
+    !isPA &&
+    !hasRole(RoleCode.STAFF) &&
+    !hasRole(RoleCode.RECEPTION) &&
+    !hasRole(RoleCode.SECURITY);
 
   // Resolved list of executive officials with designations
   const officialOptions = useMemo(() => {
@@ -557,6 +571,26 @@ export const CalendarPage: FC = () => {
         return true;
       })
       .map((ev) => {
+        if (isCitizen) {
+          const isMyApt =
+            Boolean(user?.fullName && ev.meta?.l1?.toLowerCase().includes(user.fullName.toLowerCase())) ||
+            Boolean(user?.email && ev.meta?.l1?.toLowerCase().includes(user.email.toLowerCase()));
+          if (!isMyApt) {
+            return {
+              ...ev,
+              title: 'Booked Slot',
+              fullTitle: 'Official Appointment (Reserved)',
+              kind: 'Org · Booked',
+              location: 'Chamber Room',
+              description: 'Reserved slot',
+              meta: {
+                l1: 'Reserved Chamber Slot',
+                l2: 'Occupied',
+                l3: 'Not Available',
+              },
+            };
+          }
+        }
         if (ev.type === 'PERSONAL' && asPA) {
           return {
             ...ev,
@@ -573,7 +607,7 @@ export const CalendarPage: FC = () => {
         }
         return ev;
       });
-  }, [combinedEvents, showOrg, showPersonal, asPA]);
+  }, [combinedEvents, showOrg, showPersonal, asPA, isCitizen, user]);
 
   // Selected event
   const selectedEvent = useMemo(() => {

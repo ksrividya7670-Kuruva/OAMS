@@ -123,59 +123,65 @@ export async function seed(knex: Knex): Promise<void> {
     return u;
   }
 
-  // 7. Create Users
+  // 7. Create Users & Officials
   const _adminUser = await createUser(
-    'admin@apex.local',
+    'admin@stmarysgroup.com',
     'System Admin',
     'IT Super Admin',
     executiveDept.id,
     [RoleCode.SUPER_ADMIN],
   );
+  const kvkUser = await createUser(
+    'kvk@stmarysgroup.com',
+    'Mr. KVK',
+    'Official',
+    executiveDept.id,
+    [RoleCode.OFFICIAL],
+  );
   const ceoUser = await createUser(
-    'ceo@apex.local',
-    'Vikram Malhotra',
+    'harsha@stmarysgroup.com',
+    'Mr. Harsha Rao',
     'Chief Executive Officer',
     executiveDept.id,
     [RoleCode.OFFICIAL],
   );
-  const cfoUser = await createUser(
-    'cfo@apex.local',
-    'Ananya Sharma',
-    'Chief Financial Officer',
-    financeDept.id,
-    [RoleCode.OFFICIAL],
-  );
-  const cooUser = await createUser(
-    'coo@apex.local',
-    'Rajesh Nair',
-    'Chief Operating Officer',
-    operationsDept.id,
-    [RoleCode.OFFICIAL],
-  );
-
-  const paCeoUser = await createUser(
-    'pa.ceo@apex.local',
-    'Neha Verma',
-    'Executive Assistant to CEO',
+  const vcUser = await createUser(
+    'vc@stmarysgroup.com',
+    'Prof. Vice Chancellor',
+    'Vice Chancellor',
     executiveDept.id,
-    [RoleCode.PA],
+    [RoleCode.OFFICIAL],
   );
-  const eaCfoUser = await createUser(
-    'ea.cfo@apex.local',
-    'Amit Patel',
-    'Personal Assistant to CFO',
-    financeDept.id,
-    [RoleCode.EA],
+  const bharathiUser = await createUser(
+    'bharathi@stmarysgroup.com',
+    'Ms. Bharathi',
+    'President',
+    executiveDept.id,
+    [RoleCode.OFFICIAL],
+  );
+  const indhuUser = await createUser(
+    'indhu@stmarysgroup.com',
+    'Ms. Indhu',
+    'Joint Secretary',
+    executiveDept.id,
+    [RoleCode.OFFICIAL, RoleCode.PA],
+  );
+  const janardhanUser = await createUser(
+    'janardhan@stmarysgroup.com',
+    'Mr. Janardhan',
+    'Vice Principal / Admin',
+    executiveDept.id,
+    [RoleCode.OFFICIAL, RoleCode.PA],
   );
 
-  await createUser('reception@apex.local', 'Pooja Iyer', 'Front Desk Officer', executiveDept.id, [
+  await createUser('reception@stmarysgroup.com', 'Reception Desk', 'Front Desk Officer', executiveDept.id, [
     RoleCode.RECEPTION,
   ]);
-  await createUser('security@apex.local', 'Suresh Kumar', 'Security Supervisor', executiveDept.id, [
+  await createUser('security@stmarysgroup.com', 'Security Gate 1', 'Security Supervisor', executiveDept.id, [
     RoleCode.SECURITY,
   ]);
   await createUser(
-    'auditor@apex.local',
+    'auditor@stmarysgroup.com',
     'Kavita Menon',
     'Internal Compliance Auditor',
     executiveDept.id,
@@ -231,15 +237,18 @@ export async function seed(knex: Knex): Promise<void> {
     return off;
   }
 
-  const ceoOfficial = await createOfficial(ceoUser.id, 'CEO', executiveDept.id, true);
-  const cfoOfficial = await createOfficial(cfoUser.id, 'CFO', financeDept.id, true);
-  await createOfficial(cooUser.id, 'COO', operationsDept.id, false);
+  const kvkOfficial = await createOfficial(kvkUser.id, 'Official', executiveDept.id, true);
+  const ceoOfficial = await createOfficial(ceoUser.id, 'Chief Executive Officer', executiveDept.id, true);
+  const vcOfficial = await createOfficial(vcUser.id, 'Vice Chancellor', executiveDept.id, true);
+  const bharathiOfficial = await createOfficial(bharathiUser.id, 'President', executiveDept.id, true);
+  const indhuOfficial = await createOfficial(indhuUser.id, 'Joint Secretary', executiveDept.id, false);
+  const janardhanOfficial = await createOfficial(janardhanUser.id, 'Vice Principal / Admin', executiveDept.id, false);
 
   // 9. Assign Support Staff
   await knex('official_support_staff').insert([
     {
-      official_id: ceoOfficial.id,
-      user_id: paCeoUser.id,
+      official_id: kvkOfficial.id,
+      user_id: indhuUser.id,
       support_role: 'PA',
       rank: 'PRIMARY',
       routing_order: 1,
@@ -250,9 +259,21 @@ export async function seed(knex: Knex): Promise<void> {
       can_manage_tasks: true,
     },
     {
-      official_id: cfoOfficial.id,
-      user_id: eaCfoUser.id,
-      support_role: 'EA',
+      official_id: ceoOfficial.id,
+      user_id: indhuUser.id,
+      support_role: 'PA',
+      rank: 'PRIMARY',
+      routing_order: 1,
+      can_approve: true,
+      can_view_confidential: true,
+      can_view_personal: true,
+      can_edit_personal: true,
+      can_manage_tasks: true,
+    },
+    {
+      official_id: vcOfficial.id,
+      user_id: janardhanUser.id,
+      support_role: 'PA',
       rank: 'PRIMARY',
       routing_order: 1,
       can_approve: false,

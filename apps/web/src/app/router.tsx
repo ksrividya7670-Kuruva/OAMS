@@ -41,6 +41,10 @@ export const router = createBrowserRouter([
         element: <LoginPage />,
       },
       {
+        path: 'register',
+        element: <LoginPage initialMode="signup" />,
+      },
+      {
         path: 'request',
         element: <AppointmentRequestWizard />,
       },

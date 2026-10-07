@@ -21,7 +21,6 @@ import {
   CheckSquare,
   DoorOpen,
   Clock,
-  ShieldAlert,
   Search,
   Menu,
   X,
@@ -125,14 +124,14 @@ export const Layout: FC = () => {
     return 'OAMS';
   };
 
-  const isSecurity = hasRole(RoleCode.SECURITY);
   const isAdminUser =
     hasRole(RoleCode.ADMIN) ||
     hasRole(RoleCode.SUPER_ADMIN) ||
     hasRole(RoleCode.APPOINTMENT_ADMIN);
 
-  // Primary sidebar navigation items strictly tailored to the authenticated role
+  // Primary sidebar navigation items
   const primaryNavItems: NavItem[] = useMemo(() => {
+    // Before sign-in: Only keep Home, Request Meeting, Track Appointment
     if (!user) {
       return [
         {
@@ -143,29 +142,66 @@ export const Layout: FC = () => {
         {
           to: '/request',
           label: 'Request Meeting',
-          icon: <PlusCircle className="w-[18px] h-[18px] shrink-0 text-blue-300" />,
+          icon: <PlusCircle className="w-[18px] h-[18px] shrink-0" />,
         },
         {
-          to: '/my/appointments',
+          to: '/track',
           label: 'Track Appointment',
           icon: <Clock className="w-[18px] h-[18px] shrink-0" />,
         },
       ];
     }
 
-    // 1. ADMIN ROLE: Governance tools + Reception Desk
+    // After sign-in: Uniform suite across all authenticated roles
+    return [
+      {
+        to: '/',
+        label: 'Dashboard',
+        icon: <Home className="w-[18px] h-[18px] shrink-0" />,
+      },
+      {
+        to: '/app/today',
+        label: "Today's Schedule",
+        icon: <Clock className="w-[18px] h-[18px] shrink-0" />,
+      },
+      {
+        to: '/app/inbox',
+        label: 'Triage Inbox',
+        icon: <Inbox className="w-[18px] h-[18px] shrink-0" />,
+      },
+      {
+        to: '/app/calendar',
+        label: 'Master Calendar',
+        icon: <Calendar className="w-[18px] h-[18px] shrink-0" />,
+      },
+      {
+        to: '/app/todo',
+        label: 'Tasks & Follow-ups',
+        icon: <CheckSquare className="w-[18px] h-[18px] shrink-0" />,
+      },
+      {
+        to: '/app/reception',
+        label: 'Reception Desk',
+        icon: <DoorOpen className="w-[18px] h-[18px] shrink-0" />,
+      },
+    ];
+  }, [user]);
+
+  // Secondary items: Displayed below divider for authenticated roles (hidden before sign in)
+  const secondaryNavItems: NavItem[] = useMemo(() => {
+    if (!user) return [];
+
+    const items: NavItem[] = [
+      {
+        to: '/my/appointments',
+        label: 'My Appointments',
+        icon: <Clock className="w-[18px] h-[18px] shrink-0" />,
+      },
+    ];
+
+    // Admin users also retain institutional governance links below My Appointments
     if (isAdminUser) {
-      return [
-        {
-          to: '/',
-          label: 'Dashboard',
-          icon: <Home className="w-[18px] h-[18px] shrink-0" />,
-        },
-        {
-          to: '/app/reception',
-          label: 'Reception Desk',
-          icon: <DoorOpen className="w-[18px] h-[18px] shrink-0" />,
-        },
+      items.push(
         {
           to: '/admin/users',
           label: 'Users & Roles',
@@ -186,116 +222,11 @@ export const Layout: FC = () => {
           label: 'Audit Logs',
           icon: <ShieldCheck className="w-[18px] h-[18px] shrink-0" />,
         },
-      ];
-    }
-
-    // 2. RECEPTION ROLE
-    if (hasRole(RoleCode.RECEPTION)) {
-      return [
-        {
-          to: '/',
-          label: 'Dashboard',
-          icon: <Home className="w-[18px] h-[18px] shrink-0" />,
-        },
-        {
-          to: '/app/reception',
-          label: 'Reception Desk',
-          icon: <DoorOpen className="w-[18px] h-[18px] shrink-0" />,
-        },
-        {
-          to: '/app/today',
-          label: "Today's Visitors",
-          icon: <Clock className="w-[18px] h-[18px] shrink-0" />,
-        },
-      ];
-    }
-
-    // 3. SECURITY ROLE
-    if (isSecurity) {
-      return [
-        {
-          to: '/',
-          label: 'Dashboard',
-          icon: <Home className="w-[18px] h-[18px] shrink-0" />,
-        },
-        {
-          to: '/app/reception',
-          label: 'Reception Desk',
-          icon: <DoorOpen className="w-[18px] h-[18px] shrink-0" />,
-        },
-        {
-          to: '/app/security',
-          label: 'Security Gate',
-          icon: <ShieldAlert className="w-[18px] h-[18px] shrink-0" />,
-        },
-        {
-          to: '/app/today',
-          label: "Today's Passes",
-          icon: <Clock className="w-[18px] h-[18px] shrink-0" />,
-        },
-      ];
-    }
-
-    // 4. OFFICIAL / FACULTY / SECRETARIAT / STAFF / OTHER ROLES
-    return [
-      {
-        to: '/',
-        label: 'Dashboard',
-        icon: <Home className="w-[18px] h-[18px] shrink-0" />,
-      },
-      {
-        to: '/app/reception',
-        label: 'Reception Desk',
-        icon: <DoorOpen className="w-[18px] h-[18px] shrink-0" />,
-      },
-      {
-        to: '/app/today',
-        label: "Today's Visitors",
-        icon: <Clock className="w-[18px] h-[18px] shrink-0" />,
-      },
-      {
-        to: '/app/inbox',
-        label: 'Inbox',
-        icon: <Inbox className="w-[18px] h-[18px] shrink-0" />,
-      },
-      {
-        to: '/app/calendar',
-        label: 'Calendar',
-        icon: <Calendar className="w-[18px] h-[18px] shrink-0" />,
-      },
-      {
-        to: '/app/todo',
-        label: 'To-Do',
-        icon: <CheckSquare className="w-[18px] h-[18px] shrink-0" />,
-      },
-    ];
-  }, [user, isAdminUser, isSecurity, hasRole]);
-
-  // Secondary items: Only shown if relevant for the specific role
-  const secondaryNavItems: NavItem[] = useMemo(() => {
-    if (!user) return [];
-    if (isAdminUser) return []; // Admin has zero clutter in secondary
-
-    const items: NavItem[] = [];
-
-    // Faculty, Official, Secretariat can track their personal appointments
-    if (
-      user.officialId ||
-      hasRole(RoleCode.OFFICIAL) ||
-      hasRole(RoleCode.FACULTY) ||
-      hasRole(RoleCode.PA) ||
-      hasRole(RoleCode.EA) ||
-      hasRole(RoleCode.STAFF)
-    ) {
-      items.push({
-        to: '/my/appointments',
-        label: 'My Appointments',
-        icon: <Clock className="w-[18px] h-[18px] shrink-0" />,
-      });
+      );
     }
 
     return items;
-  }, [user, isAdminUser, hasRole]);
+  }, [user, isAdminUser]);
 
   const handleLogout = async () => {
     try {
@@ -492,8 +423,8 @@ export const Layout: FC = () => {
             </h1>
           </div>
 
-          {/* Right Header Controls: Notification Bell + User Pill */}
-          <div className="flex items-center gap-3 sm:gap-4">
+          {/* Right Header Controls: Persona Switcher + Quick Search + Notification Bell + User Pill */}
+          <div className="flex items-center gap-2 sm:gap-3.5">
             {/* Quick Search */}
             <button
               type="button"
@@ -512,24 +443,16 @@ export const Layout: FC = () => {
             {user && <NotificationBell />}
 
             {user && (
-              <div className="flex items-center gap-2.5 pl-1 sm:pl-2">
-                <span className="w-9 h-9 rounded-full bg-[#2957D6] text-white flex items-center justify-center font-semibold text-sm shrink-0 shadow-2xs">
+              <div className="flex items-center gap-2 pl-1 sm:pl-2">
+                <span className="w-8 h-8 rounded-full bg-[#2957D6] text-white flex items-center justify-center font-semibold text-xs shrink-0 shadow-2xs">
                   {userInitials}
                 </span>
-                <span className="hidden sm:inline-block text-sm text-[#16181D] font-medium max-w-[200px] truncate">
+                <span className="hidden sm:inline-block text-xs text-[#16181D] font-medium max-w-[160px] truncate">
                   {userRoleDisplay}
                 </span>
               </div>
             )}
 
-            {!user && (
-              <Link
-                to="/login"
-                className="px-3 py-1.5 rounded-lg border border-[#D5D2CA] text-xs font-semibold text-[#16181D] hover:bg-white transition no-underline shadow-2xs"
-              >
-                Sign In
-              </Link>
-            )}
           </div>
         </header>
 

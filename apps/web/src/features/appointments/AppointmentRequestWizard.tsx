@@ -48,6 +48,8 @@ interface OfficialItem {
   id: string;
   title: string;
   fullName: string;
+  designation?: string;
+  tier?: string;
   departmentName?: string;
   defaultDurationMin?: number;
   isActive: boolean;
@@ -199,16 +201,22 @@ export const AppointmentRequestWizard: React.FC = () => {
         const res = await api.get<any[]>('/api/v1/officials', {
           headers: token ? { Authorization: `Bearer ${token}` } : {},
         });
+        const allowedIds = new Set([
+          'off-1', 'off-2', 'off-3', 'off-4', 'off-5', 'off-6',
+          'off-kvk', 'off-harsha', 'off-vc', 'off-bharathi', 'off-indhu', 'off-janardhan',
+        ]);
         if (Array.isArray(res) && res.length > 0) {
           const list = res.map((item) => ({
             id: item.id,
             title: item.title,
             fullName: item.fullName || item.full_name || 'Official',
+            designation: item.designation || item.roleTitle || item.title || 'Official',
+            tier: item.tier || 'Executive Chamber',
             departmentName: item.departmentName || item.department_name,
             defaultDurationMin: item.defaultDurationMin || 30,
             isActive: item.isActive ?? item.is_active ?? true,
           }));
-          const activeList = list.filter((o) => o.isActive);
+          const activeList = list.filter((o) => o.isActive && allowedIds.has(o.id));
           setOfficials(activeList.length > 0 ? activeList : (INITIAL_OFFICIALS as any));
         } else {
           setOfficials(INITIAL_OFFICIALS as any);
@@ -226,7 +234,15 @@ export const AppointmentRequestWizard: React.FC = () => {
   // Sync preselected official
   useEffect(() => {
     if (preselectedOfficialId && !selectedOfficialId) {
-      setSelectedOfficialId(preselectedOfficialId);
+      const aliasMap: Record<string, string> = {
+        'off-kvk': 'off-1',
+        'off-harsha': 'off-2',
+        'off-vc': 'off-3',
+        'off-bharathi': 'off-4',
+        'off-indhu': 'off-5',
+        'off-janardhan': 'off-6',
+      };
+      setSelectedOfficialId(aliasMap[preselectedOfficialId] || preselectedOfficialId);
     }
   }, [preselectedOfficialId, selectedOfficialId]);
 
@@ -1083,7 +1099,7 @@ export const AppointmentRequestWizard: React.FC = () => {
                           <div>
                             <div className="flex items-center justify-between gap-1 mb-1">
                               <span className="text-[10px] font-mono font-semibold uppercase text-[#1A3170] dark:text-blue-300 bg-blue-50 dark:bg-blue-950/60 px-1.5 py-0.5 rounded">
-                                Chamber
+                                {official.tier || 'Chamber'}
                               </span>
                               {isSelected && (
                                 <span className="inline-flex items-center gap-1 text-[10px] font-bold text-[#1A3170] dark:text-blue-300">
@@ -1093,10 +1109,10 @@ export const AppointmentRequestWizard: React.FC = () => {
                               )}
                             </div>
                             <div className="font-bold text-xs text-[#16181D] dark:text-white">
-                              {official.title}
-                            </div>
-                            <div className="text-xs text-[#5B6070] dark:text-[var(--text-muted)] mt-0.5">
                               {official.fullName}
+                            </div>
+                            <div className="text-xs text-[#1A3170] dark:text-blue-400 font-medium mt-0.5">
+                              {official.designation || 'Official'}
                             </div>
                           </div>
 
@@ -1122,10 +1138,10 @@ export const AppointmentRequestWizard: React.FC = () => {
                     Chamber Dignitary Confirmed
                   </div>
                   <div className="text-sm font-bold text-[#16181D] dark:text-white mt-0.5">
-                    {selectedOfficial.title} {selectedOfficial.fullName}
+                    {selectedOfficial.fullName}
                   </div>
                   <div className="text-xs text-[#5B6070] dark:text-[var(--text-muted)]">
-                    {selectedOfficial.departmentName} &bull; Default {selectedOfficial.defaultDurationMin} min consultation window
+                    {selectedOfficial.designation ? `${selectedOfficial.designation} • ` : ''}{selectedOfficial.departmentName} &bull; Default {selectedOfficial.defaultDurationMin} min consultation window
                   </div>
                 </div>
 

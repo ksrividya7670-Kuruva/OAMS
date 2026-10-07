@@ -73,7 +73,11 @@ export const MeetingDayDashboard: FC = () => {
     }
     if (isOfficial) {
       const myOpt = officials.filter((o) => o.id === user?.officialId);
-      return myOpt.length > 0 ? myOpt : officials.slice(0, 1);
+      if (myOpt.length > 0) return myOpt;
+      if (user?.officialId) {
+        return [{ id: user.officialId, fullName: user.fullName || 'Official', designation: 'Official Chamber' }];
+      }
+      return officials.slice(0, 1);
     }
     if (isPA) {
       if (user?.assignedOfficialIds && user.assignedOfficialIds.length > 0) {

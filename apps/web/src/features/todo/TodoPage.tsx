@@ -1,4 +1,4 @@
-import { type FC, useState } from 'react';
+import { type FC, useState, useMemo } from 'react';
 import { useAuth } from '@/features/auth/AuthContext';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
@@ -16,6 +16,8 @@ import {
   CheckCircle2,
   Trash2,
   ChevronDown,
+  Search,
+  X,
 } from 'lucide-react';
 import { TodoListView } from './TodoListView';
 import { TodoBoardView } from './TodoBoardView';
@@ -26,22 +28,33 @@ export const TodoPage: FC = () => {
   const queryClient = useQueryClient();
   const { user } = useAuth();
 
-  const isOfficial = user?.roles?.includes(RoleCode.OFFICIAL);
+  const isOfficial = Boolean(
+    user?.officialId ||
+    user?.roles?.includes(RoleCode.OFFICIAL) ||
+    user?.roles?.includes(RoleCode.FACULTY)
+  );
   const isSuperAdmin = user?.roles?.includes(RoleCode.SUPER_ADMIN);
   const isPA = user?.roles?.includes(RoleCode.PA) || user?.roles?.includes(RoleCode.EA);
 
   // Active view: list | board | calendar
   const [activeView, setActiveView] = useState<'list' | 'board' | 'calendar'>('list');
 
-
-
-  const [searchQuery] = useState('');
-  const [selectedScope] = useState<
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedScope, setSelectedScope] = useState<
     'ALL' | 'MY' | 'DELEGATED_TO_ME' | 'DELEGATED_BY_ME'
   >('ALL');
-  const [selectedPriority] = useState<string>('');
-  const [selectedCategory] = useState<string>('');
-  const [recurringOnly] = useState(false);
+  const [selectedPriority, setSelectedPriority] = useState<string>('');
+  const [selectedCategory, setSelectedCategory] = useState<string>('');
+  const [recurringOnly, setRecurringOnly] = useState(false);
+
+  // Modal create task state
+  const [isNewTaskModalOpen, setIsNewTaskModalOpen] = useState(false);
+  const [modalTitle, setModalTitle] = useState('');
+  const [modalPriority, setModalPriority] = useState<Priority>(Priority.MEDIUM);
+  const [modalCategory, setModalCategory] = useState<TaskCategory>(TaskCategory.ADMIN);
+  const [modalDueDate, setModalDueDate] = useState('');
+  const [modalOfficialId, setModalOfficialId] = useState('');
+  const [modalPersonal, setModalPersonal] = useState(false);
 
   // Quick-add bar state
   const [quickTitle, setQuickTitle] = useState('');
@@ -69,6 +82,21 @@ export const TodoPage: FC = () => {
     user?.officialId ||
     (isSuperAdmin ? (officials[0]?.id ?? '') : '') ||
     (isPA ? (user?.assignedOfficialIds?.[0] || '') : '');
+
+  const allowedOfficials = useMemo(() => {
+    if (isSuperAdmin) return officials;
+    if (isOfficial && user?.officialId) {
+      const myOpt = officials.filter((o: any) => o.id === user.officialId);
+      return myOpt.length > 0
+        ? myOpt
+        : [{ id: user.officialId, title: '', fullName: user.fullName || 'Official' }];
+    }
+    if (isPA && user?.assignedOfficialIds && user.assignedOfficialIds.length > 0) {
+      const assigned = officials.filter((o: any) => user.assignedOfficialIds!.includes(o.id));
+      if (assigned.length > 0) return assigned;
+    }
+    return officials;
+  }, [officials, isSuperAdmin, isOfficial, isPA, user]);
 
   // Fetch tasks
   const { data: tasksData } = useQuery<{ tasks: TaskListItemDto[]; total: number }>({
@@ -407,9 +435,9 @@ export const TodoPage: FC = () => {
   return (
     <div className="max-w-[1200px] mx-auto space-y-5">
       {/* Top Controls Bar matching template */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        {/* Left: View Switch + Official To-Do Filter */}
-        <div className="flex flex-wrap items-center gap-3">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+        {/* Left: View Switch + Filters */}
+        <div className="flex flex-wrap items-center gap-2.5">
           {/* View Switch: List | Board | Calendar */}
           <div
             role="tablist"
@@ -420,7 +448,7 @@ export const TodoPage: FC = () => {
               role="tab"
               aria-selected={activeView === 'list'}
               onClick={() => setActiveView('list')}
-              className={`h-[34px] px-4 rounded-[7px] border-0 text-[13px] transition cursor-pointer ${
+              className={`h-[34px] px-3.5 rounded-[7px] border-0 text-[13px] transition cursor-pointer ${
                 activeView === 'list'
                   ? 'bg-white text-[#16181D] font-semibold shadow-2xs'
                   : 'bg-transparent text-[#16181D] font-normal hover:text-black'
@@ -433,7 +461,7 @@ export const TodoPage: FC = () => {
               role="tab"
               aria-selected={activeView === 'board'}
               onClick={() => setActiveView('board')}
-              className={`h-[34px] px-4 rounded-[7px] border-0 text-[13px] transition cursor-pointer ${
+              className={`h-[34px] px-3.5 rounded-[7px] border-0 text-[13px] transition cursor-pointer ${
                 activeView === 'board'
                   ? 'bg-white text-[#16181D] font-semibold shadow-2xs'
                   : 'bg-transparent text-[#16181D] font-normal hover:text-black'
@@ -446,7 +474,7 @@ export const TodoPage: FC = () => {
               role="tab"
               aria-selected={activeView === 'calendar'}
               onClick={() => setActiveView('calendar')}
-              className={`h-[34px] px-4 rounded-[7px] border-0 text-[13px] transition cursor-pointer ${
+              className={`h-[34px] px-3.5 rounded-[7px] border-0 text-[13px] transition cursor-pointer ${
                 activeView === 'calendar'
                   ? 'bg-white text-[#16181D] font-semibold shadow-2xs'
                   : 'bg-transparent text-[#16181D] font-normal hover:text-black'
@@ -455,16 +483,84 @@ export const TodoPage: FC = () => {
               Calendar
             </button>
           </div>
+
+          {/* Search Box */}
+          <div className="relative">
+            <Search className="w-3.5 h-3.5 text-[#5B6070] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <input
+              type="text"
+              placeholder="Search tasks..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="h-[34px] pl-8.5 pr-3 rounded-[8px] border border-[#D5D2CA] bg-white text-xs text-[#16181D] placeholder:text-[#8C8A84] focus:outline-hidden focus:ring-1 focus:ring-[#2957D6]"
+            />
+          </div>
+
+          {/* Priority Filter */}
+          <select
+            value={selectedPriority}
+            onChange={(e) => setSelectedPriority(e.target.value)}
+            className="h-[34px] px-2.5 rounded-[8px] border border-[#D5D2CA] bg-white text-xs text-[#16181D] focus:outline-hidden focus:ring-1 focus:ring-[#2957D6]"
+          >
+            <option value="">All Priorities</option>
+            <option value="URGENT">Urgent</option>
+            <option value="HIGH">High</option>
+            <option value="MEDIUM">Medium</option>
+            <option value="LOW">Low</option>
+          </select>
+
+          {/* Category Filter */}
+          <select
+            value={selectedCategory}
+            onChange={(e) => setSelectedCategory(e.target.value)}
+            className="h-[34px] px-2.5 rounded-[8px] border border-[#D5D2CA] bg-white text-xs text-[#16181D] focus:outline-hidden focus:ring-1 focus:ring-[#2957D6]"
+          >
+            <option value="">All Categories</option>
+            <option value={TaskCategory.MEETING}>Meeting</option>
+            <option value={TaskCategory.APPROVAL}>Approval</option>
+            <option value={TaskCategory.REVIEW}>Review</option>
+            <option value={TaskCategory.ADMIN}>Administration</option>
+            <option value={TaskCategory.OPERATIONS}>Operations</option>
+            <option value={TaskCategory.FOLLOW_UP}>Follow-up</option>
+            <option value={TaskCategory.FINANCE}>Finance</option>
+            <option value={TaskCategory.HR}>HR</option>
+          </select>
+
+          {/* Scope Filter */}
+          <select
+            value={selectedScope}
+            onChange={(e) => setSelectedScope(e.target.value as any)}
+            className="h-[34px] px-2.5 rounded-[8px] border border-[#D5D2CA] bg-white text-xs text-[#16181D] focus:outline-hidden focus:ring-1 focus:ring-[#2957D6]"
+          >
+            <option value="ALL">All Tasks</option>
+            <option value="MY">My Tasks</option>
+            <option value="DELEGATED_TO_ME">Assigned to Me</option>
+            <option value="DELEGATED_BY_ME">Delegated</option>
+          </select>
+
+          {/* Recurring Toggle */}
+          <button
+            type="button"
+            onClick={() => setRecurringOnly(!recurringOnly)}
+            className={`h-[34px] px-2.5 rounded-[8px] text-xs font-semibold border transition cursor-pointer ${
+              recurringOnly
+                ? 'bg-[#2957D6]/10 text-[#2957D6] border-[#2957D6]/30'
+                : 'bg-white text-[#5B6070] border-[#D5D2CA] hover:bg-[#F7F6F2]'
+            }`}
+            title="Filter recurring tasks"
+          >
+            {recurringOnly ? '✓ Recurring' : 'Recurring'}
+          </button>
         </div>
 
         {/* Action Buttons: Export & New Task */}
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-2">
           {/* Export Dropdown */}
           <div className="relative">
             <button
               type="button"
               onClick={() => setExportMenuOpen(!exportMenuOpen)}
-              className="h-10 px-3.5 border border-[#D5D2CA] rounded-lg bg-white text-sm text-[#16181D] hover:bg-[#F7F6F2] transition cursor-pointer flex items-center gap-1.5"
+              className="h-[34px] px-3 border border-[#D5D2CA] rounded-[8px] bg-white text-xs text-[#16181D] hover:bg-[#F7F6F2] transition cursor-pointer flex items-center gap-1.5"
             >
               <span>Export</span>
               <ChevronDown className="w-3.5 h-3.5 text-[#5B6070]" />
@@ -509,22 +605,18 @@ export const TodoPage: FC = () => {
           <button
             type="button"
             onClick={() => {
-              const title = prompt('Enter new task title:');
-              if (title) {
-                createMutation.mutate({
-                  title,
-                  priority: Priority.MEDIUM,
-                  category: TaskCategory.OTHER,
-                  officialId: currentOfficialId,
-                  assignedToId: user?.id,
-                  assignedToName: user?.fullName,
-                });
-              }
+              setModalTitle('');
+              setModalDueDate('');
+              setModalPriority(Priority.MEDIUM);
+              setModalCategory(TaskCategory.ADMIN);
+              setModalOfficialId(currentOfficialId);
+              setModalPersonal(false);
+              setIsNewTaskModalOpen(true);
             }}
-            className="h-10 px-3.5 border-0 rounded-lg bg-[#2957D6] hover:bg-[#1E4FC2] text-white text-sm font-semibold flex items-center gap-1.5 transition cursor-pointer"
+            className="h-[34px] px-3.5 border-0 rounded-[8px] bg-[#2957D6] hover:bg-[#1E4FC2] text-white text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer shadow-2xs"
           >
             <Plus className="w-4 h-4" />
-            <span>New task</span>
+            <span>New Task</span>
           </button>
         </div>
       </div>
@@ -702,6 +794,164 @@ export const TodoPage: FC = () => {
           >
             Clear
           </button>
+        </div>
+      )}
+      {/* Create Task Modal */}
+      {isNewTaskModalOpen && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+          <div className="bg-[var(--bg-surface)] border border-[var(--border-default)] rounded-2xl p-6 max-w-md w-full shadow-xl space-y-4 animate-in fade-in zoom-in-95">
+            <div className="flex items-center justify-between pb-3 border-b border-[var(--border-subtle)]">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-[var(--brand-primary)]/10 text-[var(--brand-primary)] flex items-center justify-center font-bold">
+                  <Plus className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-[var(--text-main)]">Create Executive Task</h3>
+                  <p className="text-[11px] text-[var(--text-muted)]">Official action item or delegated assignment</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsNewTaskModalOpen(false)}
+                className="text-[var(--text-muted)] hover:text-[var(--text-main)] cursor-pointer p-1 rounded-lg"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (!modalTitle.trim()) return;
+                createMutation.mutate({
+                  officialId: modalOfficialId || currentOfficialId,
+                  title: modalTitle.trim(),
+                  priority: modalPriority,
+                  category: modalCategory,
+                  visibility: modalPersonal ? 'PERSONAL' : 'ORG',
+                  dueAt: modalDueDate ? new Date(modalDueDate).toISOString() : null,
+                  assignedToId: user?.id,
+                  assignedToName: user?.fullName,
+                });
+                setIsNewTaskModalOpen(false);
+              }}
+              className="space-y-3.5 text-xs"
+            >
+              <div>
+                <label className="block text-[11px] font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-1">
+                  Task Title *
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g., Prepare Senate briefing deck, review MOU clearance..."
+                  value={modalTitle}
+                  onChange={(e) => setModalTitle(e.target.value)}
+                  className="w-full p-2.5 bg-[var(--bg-surface)] border border-[var(--border-default)] rounded-xl text-xs text-[var(--text-main)] focus:ring-1 focus:ring-[var(--brand-primary)]"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-1">
+                    Priority
+                  </label>
+                  <select
+                    value={modalPriority}
+                    onChange={(e) => setModalPriority(e.target.value as any)}
+                    className="w-full p-2 bg-[var(--bg-surface)] border border-[var(--border-default)] rounded-xl text-xs text-[var(--text-main)]"
+                  >
+                    <option value={Priority.LOW}>Low</option>
+                    <option value={Priority.MEDIUM}>Medium</option>
+                    <option value={Priority.HIGH}>High</option>
+                    <option value={Priority.URGENT}>Urgent</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-1">
+                    Category
+                  </label>
+                  <select
+                    value={modalCategory}
+                    onChange={(e) => setModalCategory(e.target.value as any)}
+                    className="w-full p-2 bg-[var(--bg-surface)] border border-[var(--border-default)] rounded-xl text-xs text-[var(--text-main)]"
+                  >
+                    <option value={TaskCategory.MEETING}>Meeting</option>
+                    <option value={TaskCategory.APPROVAL}>Approval</option>
+                    <option value={TaskCategory.REVIEW}>Review</option>
+                    <option value={TaskCategory.ADMIN}>Administration</option>
+                    <option value={TaskCategory.OPERATIONS}>Operations</option>
+                    <option value={TaskCategory.FOLLOW_UP}>Follow-up</option>
+                    <option value={TaskCategory.FINANCE}>Finance</option>
+                    <option value={TaskCategory.HR}>HR</option>
+                    <option value={TaskCategory.OTHER}>Other</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-1">
+                    Due Date (Optional)
+                  </label>
+                  <input
+                    type="date"
+                    value={modalDueDate}
+                    onChange={(e) => setModalDueDate(e.target.value)}
+                    className="w-full p-2 bg-[var(--bg-surface)] border border-[var(--border-default)] rounded-xl text-xs text-[var(--text-main)]"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-1">
+                    Chamber Dignitary
+                  </label>
+                  <select
+                    value={modalOfficialId || currentOfficialId}
+                    onChange={(e) => setModalOfficialId(e.target.value)}
+                    className="w-full p-2 bg-[var(--bg-surface)] border border-[var(--border-default)] rounded-xl text-xs text-[var(--text-main)]"
+                  >
+                    {allowedOfficials.map((o: any) => (
+                      <option key={o.id} value={o.id}>
+                        {o.title} {o.fullName || o.full_name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 pt-1">
+                <input
+                  type="checkbox"
+                  id="modalPersonal"
+                  checked={modalPersonal}
+                  onChange={(e) => setModalPersonal(e.target.checked)}
+                  className="rounded text-[var(--brand-primary)]"
+                />
+                <label htmlFor="modalPersonal" className="text-[11px] text-[var(--text-muted)] cursor-pointer">
+                  Private to-do (hidden from secretariat staff)
+                </label>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-[var(--border-subtle)]">
+                <button
+                  type="button"
+                  onClick={() => setIsNewTaskModalOpen(false)}
+                  className="px-3.5 py-2 border border-[var(--border-default)] text-xs font-semibold rounded-xl text-[var(--text-main)] hover:bg-[var(--bg-subtle)] transition cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={createMutation.isPending}
+                  className="px-4 py-2 bg-[#2957D6] hover:bg-[#1E4FC2] text-white text-xs font-semibold rounded-xl transition cursor-pointer shadow-xs disabled:opacity-50"
+                >
+                  {createMutation.isPending ? 'Creating...' : 'Create Task'}
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
 

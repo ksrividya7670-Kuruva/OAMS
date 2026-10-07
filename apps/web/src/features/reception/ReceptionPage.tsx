@@ -1,7 +1,6 @@
-import { type FC, useState } from 'react';
+import { type FC, useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import type { VisitDto } from '@oams/shared';
-import { VisitStatus } from '@oams/shared';
+import { VisitStatus, RoleCode, type VisitDto } from '@oams/shared';
 import { useAuth } from '@/features/auth/AuthContext';
 import { api } from '@/lib/api';
 import {
@@ -18,6 +17,9 @@ import {
   Calendar,
   RefreshCw,
   X,
+  FileText,
+  Car,
+  Bell,
 } from 'lucide-react';
 import { LiveWaitTimer } from './LiveWaitTimer';
 import { CheckInModal } from './CheckInModal';
@@ -26,9 +28,63 @@ import { BadgePrintModal } from './BadgePrintModal';
 import { WalkInModal } from './WalkInModal';
 import { QrScannerModal } from './QrScannerModal';
 
+export type ReceptionPerspective = 'MY_CHAMBER' | 'GATE_SECURITY' | 'SECRETARIAT';
+
+// Helper: Format raw enum values into human-readable purpose labels
+const formatPurposeCategory = (purpose?: string | null, subject?: string | null): string => {
+  if (!purpose && !subject) return 'General Official Appointment';
+  const val = (purpose || subject || '').trim();
+  const MAP: Record<string, string> = {
+    APPROVAL_REQUEST: 'Administrative Approval Request',
+    OFFICIAL_MEETING: 'Official Institutional Meeting',
+    VIP_DELEGATION: 'High-Level VIP Delegation',
+    CAMPUS_VISIT: 'Campus / Institutional Visit',
+    ACADEMIC: 'Academic Review & Consultation',
+    GRIEVANCE: 'Institutional Representation',
+    VENDOR: 'Vendor & Procurement Review',
+    PRESS_MEDIA: 'Press & Media Briefing',
+    GENERAL: 'General Official Appointment',
+    OTHER: 'General Official Visit',
+  };
+  if (MAP[val]) return MAP[val];
+  if (/^[A-Z0-9_]+$/.test(val)) {
+    return val
+      .split('_')
+      .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+      .join(' ');
+  }
+  return val;
+};
+
+// Helper: Title-case visitor names cleanly
+const formatVisitorName = (name: string): string => {
+  if (!name) return 'Guest Visitor';
+  return name
+    .trim()
+    .split(/\s+/)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+    .join(' ');
+};
+
 export const ReceptionPage: FC = () => {
   const queryClient = useQueryClient();
-  const { user } = useAuth();
+  const { user, hasRole } = useAuth();
+
+  // Role detection
+  const isOfficialOrFaculty = Boolean(
+    user?.officialId || hasRole(RoleCode.OFFICIAL) || hasRole(RoleCode.FACULTY),
+  );
+  const isSecurityOrReception = hasRole(RoleCode.RECEPTION) || hasRole(RoleCode.SECURITY);
+  const isSecretariat = hasRole(RoleCode.PA) || hasRole(RoleCode.EA);
+
+  // Role-derived perspective
+  const perspective: ReceptionPerspective = isOfficialOrFaculty
+    ? 'MY_CHAMBER'
+    : isSecurityOrReception
+      ? 'GATE_SECURITY'
+      : isSecretariat
+        ? 'SECRETARIAT'
+        : 'GATE_SECURITY';
 
   // Filters
   const [dateFilter, setDateFilter] = useState(() => new Date().toISOString().split('T')[0]);
@@ -47,20 +103,64 @@ export const ReceptionPage: FC = () => {
     isFetching,
     refetch,
   } = useQuery<{ visits: VisitDto[] }>({
-    queryKey: ['visits', dateFilter, searchFilter],
+    queryKey: ['visits', dateFilter, searchFilter, user?.officialId, isOfficialOrFaculty],
     queryFn: () => {
       const params = new URLSearchParams();
       if (dateFilter) params.append('date', dateFilter);
       if (searchFilter) params.append('search', searchFilter);
+      if (isOfficialOrFaculty && user?.officialId) {
+        params.append('officialId', user.officialId);
+      }
       return api.get<{ visits: VisitDto[] }>(`/api/v1/visits?${params.toString()}`);
     },
     refetchInterval: 15000,
   });
 
-  // Display all campus visits
-  const allVisits: VisitDto[] =
-    visitsData?.visits || (Array.isArray(visitsData) ? (visitsData as VisitDto[]) : []);
-  const visits: VisitDto[] = allVisits;
+  const allVisits: VisitDto[] = useMemo(() => {
+    if (!visitsData) return [];
+    if (Array.isArray(visitsData)) return visitsData as VisitDto[];
+    return visitsData.visits || [];
+  }, [visitsData]);
+
+  // Filter visits based on active role
+  const visits = useMemo(() => {
+    if (isOfficialOrFaculty) {
+      return allVisits.filter((v) => {
+        if (user?.officialId && (v.hostOfficialId === user.officialId || (v as any).officialId === user.officialId)) return true;
+        if (user?.fullName && v.hostOfficialName) {
+          const u = user.fullName.toLowerCase().replace(/^(mr\.|dr\.|prof\.|ms\.|mrs\.)\s*/i, '').trim();
+          const h = v.hostOfficialName.toLowerCase().replace(/^(mr\.|dr\.|prof\.|ms\.|mrs\.)\s*/i, '').trim();
+          if (u && h && (h.includes(u) || u.includes(h))) return true;
+        }
+        return false;
+      });
+    }
+    if (isSecretariat && user?.assignedOfficialIds && user.assignedOfficialIds.length > 0) {
+      return allVisits.filter((v) =>
+        user.assignedOfficialIds!.includes(v.hostOfficialId || (v as any).officialId),
+      );
+    }
+    const isCitizen =
+      !user?.officialId &&
+      (!user?.roles ||
+        user.roles.includes(RoleCode.GUEST) ||
+        (user.roles as any).includes('CITIZEN') ||
+        (user.roles as any).includes('STUDENT')) &&
+      !isSecurityOrReception &&
+      !hasRole(RoleCode.ADMIN) &&
+      !hasRole(RoleCode.SUPER_ADMIN) &&
+      !hasRole(RoleCode.STAFF);
+    if (isCitizen) {
+      return allVisits.filter((v) => {
+        const email = (v.email || '').toLowerCase();
+        const userEmail = (user?.email || '').toLowerCase();
+        const name = (v.visitorName || '').toLowerCase();
+        const userName = (user?.fullName || '').toLowerCase();
+        return (userEmail && email === userEmail) || (userName && name.includes(userName));
+      });
+    }
+    return allVisits;
+  }, [allVisits, isOfficialOrFaculty, isSecretariat, isSecurityOrReception, hasRole, user]);
 
   // Helper to update local query cache immediately for instant, responsive UX
   const updateVisitStatusInCache = (
@@ -125,14 +225,35 @@ export const ReceptionPage: FC = () => {
       v.status === VisitStatus.NO_SHOW,
   );
 
-  // Unified official Reception Desk header
-  const headerInfo = {
-    title: 'Reception Desk & Visitor Management',
-    subtitle: 'Real-time gate arrival queue, badge issuance, and campus-wide lobby tracking',
-    badge: 'Live Gate Desk',
-  };
+  // Dynamic role-based header info
+  const headerInfo = useMemo(() => {
+    if (perspective === 'MY_CHAMBER') {
+      return {
+        title: `${user?.fullName ? `${user.fullName}'s` : 'My'} Chamber Reception`,
+        subtitle: 'Real-time lobby monitoring for your visitors, instant chamber call-in, and session duration tracking',
+        badge: 'Chamber Office Desk',
+        badgeClass: 'bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950/50 dark:text-indigo-300 dark:border-indigo-800',
+        dotClass: 'bg-indigo-600 dark:bg-indigo-400',
+      };
+    }
+    if (perspective === 'GATE_SECURITY') {
+      return {
+        title: 'Central Gate 1 & Perimeter Reception Desk',
+        subtitle: 'Front-gate optical QR scanning, identity verification (§15 compliance), badge issuance, and vehicle logs',
+        badge: 'Live Gate 1 Desk',
+        badgeClass: 'bg-amber-50 text-amber-800 border-amber-200 dark:bg-amber-950/50 dark:text-amber-300 dark:border-amber-800',
+        dotClass: 'bg-amber-600 dark:bg-amber-400',
+      };
+    }
+    return {
+      title: 'Executive Secretariat Reception & Triage Desk',
+      subtitle: 'VIP delegation coordination, executive chamber queue management, and dignitary escort triage',
+      badge: 'Secretariat Command',
+      badgeClass: 'bg-emerald-50 text-emerald-800 border-emerald-200 dark:bg-emerald-950/50 dark:text-emerald-300 dark:border-emerald-800',
+      dotClass: 'bg-emerald-600 dark:bg-emerald-400',
+    };
+  }, [perspective, user]);
 
-  // Download printable daily expected list PDF / roster
   // Download / Print official daily visitor register
   const handlePrintDailyRoster = () => {
     const printWin = window.open('', '_blank', 'width=960,height=720');
@@ -140,33 +261,40 @@ export const ReceptionPage: FC = () => {
       alert('Pop-up blocked. Please allow pop-ups to view printable visitor register.');
       return;
     }
+
+    const scopeTitle =
+      perspective === 'MY_CHAMBER'
+        ? `Chamber Roster — ${user?.fullName || 'Official'}`
+        : perspective === 'GATE_SECURITY'
+          ? 'Central Gate 1 Security Register'
+          : 'Executive Secretariat Daily Roster';
+
     const html = `
       <!DOCTYPE html>
       <html>
       <head>
-        <title>OAMS Gate Visitor Register - ${dateFilter}</title>
+        <title>OAMS Visitor Register — ${dateFilter}</title>
         <style>
-          body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 28px; color: #16181D; background: #fff; }
-          .header { border-bottom: 2px solid #1A3170; padding-bottom: 12px; margin-bottom: 16px; }
-          .title { font-size: 18px; font-weight: 800; color: #1A3170; letter-spacing: 0.5px; text-transform: uppercase; }
-          .subtitle { font-size: 12px; color: #5B6070; margin-top: 3px; }
-          .meta-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 12px; padding: 10px; background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 6px; font-size: 11px; }
-          .meta-item strong { display: block; color: #1A3170; font-size: 10px; text-transform: uppercase; }
-          table { width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 18px; }
-          th { background: #1A3170; color: #fff; border: 1px solid #1A3170; padding: 8px 6px; text-align: left; font-weight: 600; font-size: 10px; text-transform: uppercase; letter-spacing: 0.3px; }
-          td { border: 1px solid #CBD5E1; padding: 7px 6px; vertical-align: top; }
+          body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 24px; color: #0F172A; }
+          .header { border-bottom: 2px solid #1A3170; padding-bottom: 12px; margin-bottom: 18px; }
+          .title { font-size: 18px; font-weight: 800; color: #1A3170; }
+          .subtitle { font-size: 12px; color: #475569; margin-top: 2px; }
+          .meta-grid { display: flex; gap: 20px; font-size: 11px; margin-top: 8px; color: #334155; }
+          .meta-item strong { display: block; color: #64748B; font-size: 9px; text-transform: uppercase; }
+          table { width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 14px; }
+          th { background: #F1F5F9; color: #334155; text-align: left; padding: 7px 8px; border-bottom: 1px solid #CBD5E1; font-weight: 700; }
+          td { padding: 7px 8px; border-bottom: 1px solid #E2E8F0; vertical-align: top; }
           tr:nth-child(even) { background: #F8FAFC; }
-          .badge { display: inline-block; padding: 2px 6px; border-radius: 4px; font-weight: 700; font-size: 10px; font-family: monospace; }
-          .badge-expected { background: #EFF6FF; color: #1E40AF; border: 1px solid #BFDBFE; }
-          .badge-arrived { background: #FFFBEB; color: #92400E; border: 1px solid #FDE68A; }
-          .badge-checkedin { background: #ECFDF5; color: #065F46; border: 1px solid #A7F3D0; }
-          .badge-withhost { background: #EEF2FF; color: #3730A3; border: 1px solid #C7D2FE; }
-          .badge-departed { background: #F1F5F9; color: #334155; border: 1px solid #CBD5E1; }
-          .badge-denied { background: #FEF2F2; color: #991B1B; border: 1px solid #FECACA; }
-          .signatures { margin-top: 48px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 32px; font-size: 11px; }
-          .sig-box { border-top: 1px solid #475569; padding-top: 8px; text-align: center; }
-          .sig-title { font-weight: 700; color: #16181D; }
-          .sig-sub { font-size: 10px; color: #64748B; margin-top: 2px; }
+          .badge { display: inline-block; padding: 2px 6px; border-radius: 4px; font-weight: 700; font-size: 9px; }
+          .badge-expected { background: #EFF6FF; color: #1D4ED8; }
+          .badge-arrived { background: #FFFBEB; color: #B45309; }
+          .badge-checkedin { background: #ECFDF5; color: #047857; }
+          .badge-withhost { background: #EEF2FF; color: #4338CA; }
+          .badge-departed { background: #F1F5F9; color: #475569; }
+          .badge-denied { background: #FEF2F2; color: #B91C1C; }
+          .signatures { margin-top: 36px; display: flex; justify-content: space-between; page-break-inside: avoid; }
+          .sig-box { border-top: 1px solid #94A3B8; width: 200px; padding-top: 6px; text-align: center; font-size: 10px; color: #475569; }
+          .sig-title { font-weight: 700; color: #1E293B; }
           @media print {
             body { padding: 0; }
             button { display: none; }
@@ -179,7 +307,7 @@ export const ReceptionPage: FC = () => {
           <div class="subtitle">Official Daily Entry Queue & Security Protocol Register (§15 Compliance)</div>
           <div class="meta-grid">
             <div class="meta-item"><strong>Date</strong>${dateFilter}</div>
-            <div class="meta-item"><strong>Portfolio Scope</strong>${headerInfo.badge}</div>
+            <div class="meta-item"><strong>Scope</strong>${scopeTitle}</div>
             <div class="meta-item"><strong>Total Records</strong>${visits.length} Visitor(s)</div>
             <div class="meta-item"><strong>Generated On</strong>${new Date().toLocaleString()}</div>
           </div>
@@ -210,7 +338,7 @@ export const ReceptionPage: FC = () => {
                 <tr>
                   <td>${i + 1}</td>
                   <td><strong>${v.referenceNo}</strong></td>
-                  <td><strong>${v.visitorName}</strong></td>
+                  <td><strong>${formatVisitorName(v.visitorName)}</strong></td>
                   <td>${v.organization || 'Individual'}</td>
                   <td>${v.hostOfficialName || 'Official'}</td>
                   <td>${v.roomName || 'Main Complex'}</td>
@@ -233,7 +361,7 @@ export const ReceptionPage: FC = () => {
             <div class="sig-sub">Identity Verified (§15)</div>
           </div>
           <div class="sig-box">
-            <div class="sig-title">Executive Secretariat Verified</div>
+            <div class="sig-title">Executive Host Verified</div>
             <div class="sig-sub">Protocol Compliance Validated</div>
           </div>
         </div>
@@ -248,16 +376,18 @@ export const ReceptionPage: FC = () => {
   };
 
   return (
-    <div className="space-y-5">
-      {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-1">
+    <div className="space-y-4">
+      {/* 1. Page Header with Role Identity */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-1">
         <div>
           <div className="flex items-center gap-3">
             <h1 className="font-sans text-xl sm:text-2xl font-bold tracking-tight text-[#16181D] dark:text-white">
               {headerInfo.title}
             </h1>
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-[#EFF4FB] text-[#1A3170] dark:bg-slate-800 dark:text-blue-300 border border-[#CBD5E1] dark:border-slate-700">
-              <span className="w-1.5 h-1.5 rounded-full bg-[#1A3170] dark:bg-blue-400" />
+            <span
+              className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold border ${headerInfo.badgeClass}`}
+            >
+              <span className={`w-1.5 h-1.5 rounded-full ${headerInfo.dotClass}`} />
               {headerInfo.badge}
             </span>
           </div>
@@ -268,20 +398,31 @@ export const ReceptionPage: FC = () => {
 
         {/* Header Action Buttons */}
         <div className="flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setIsScannerOpen(true)}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border border-[#D5D2CA] dark:border-slate-700 bg-white dark:bg-slate-800 text-[#16181D] dark:text-slate-200 hover:bg-[#F7F6F2] dark:hover:bg-slate-700/60 cursor-pointer transition-colors shadow-2xs"
-          >
-            <QrCode className="w-3.5 h-3.5 text-[#1A3170] dark:text-blue-400" />
-            Scan Pass / QR
-          </button>
+          {perspective === 'GATE_SECURITY' ? (
+            <button
+              type="button"
+              onClick={() => setIsScannerOpen(true)}
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold rounded-lg bg-[#1A3170] hover:bg-[#132554] text-white cursor-pointer transition-colors shadow-xs"
+            >
+              <QrCode className="w-3.5 h-3.5" />
+              Scan Pass / QR
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setIsScannerOpen(true)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border border-[#D5D2CA] dark:border-slate-700 bg-white dark:bg-slate-800 text-[#16181D] dark:text-slate-200 hover:bg-[#F7F6F2] dark:hover:bg-slate-700/60 cursor-pointer transition-colors shadow-2xs"
+            >
+              <QrCode className="w-3.5 h-3.5 text-[#1A3170] dark:text-blue-400" />
+              Scan Pass / QR
+            </button>
+          )}
 
           <button
             type="button"
             onClick={handlePrintDailyRoster}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border border-[#D5D2CA] dark:border-slate-700 bg-white dark:bg-slate-800 text-[#16181D] dark:text-slate-200 hover:bg-[#F7F6F2] dark:hover:bg-slate-700/60 cursor-pointer transition-colors shadow-2xs"
-            title="Open printable gate register roster"
+            title="Open printable register roster"
           >
             <Download className="w-3.5 h-3.5 text-[#475569] dark:text-slate-400" />
             Daily List (PDF)
@@ -290,10 +431,14 @@ export const ReceptionPage: FC = () => {
           <button
             type="button"
             onClick={() => setIsWalkInOpen(true)}
-            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold rounded-lg bg-[#1A3170] hover:bg-[#132554] text-white cursor-pointer transition-colors shadow-xs"
+            className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold rounded-lg cursor-pointer transition-colors shadow-xs ${
+              perspective === 'GATE_SECURITY'
+                ? 'border border-[#D5D2CA] dark:border-slate-700 bg-white dark:bg-slate-800 text-[#16181D] dark:text-slate-200 hover:bg-[#F7F6F2]'
+                : 'bg-[#1A3170] hover:bg-[#132554] text-white'
+            }`}
           >
             <UserPlus className="w-3.5 h-3.5" />
-            Register Walk-in
+            {perspective === 'MY_CHAMBER' ? 'Register Guest' : 'Register Walk-in'}
           </button>
 
           <button
@@ -310,7 +455,9 @@ export const ReceptionPage: FC = () => {
         </div>
       </div>
 
-      {/* Stats Summary Cards with Unique Solid Institutional Accents */}
+
+
+      {/* 3. Stats Summary Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
         {/* Expected */}
         <div className="p-3.5 rounded-xl border border-[#E4E2DC] dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center justify-between shadow-2xs hover:shadow-xs transition">
@@ -357,11 +504,11 @@ export const ReceptionPage: FC = () => {
           </div>
         </div>
 
-        {/* With Host (Royal Indigo Accent) */}
+        {/* With Host / In Chamber */}
         <div className="p-3.5 rounded-xl border border-[#E4E2DC] dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center justify-between shadow-2xs hover:shadow-xs transition">
           <div>
             <div className="text-[11px] font-semibold text-[#5B6070] dark:text-slate-400 uppercase tracking-wider">
-              With Host
+              {perspective === 'MY_CHAMBER' ? 'In Chamber' : 'With Host'}
             </div>
             <div className="text-2xl font-bold tracking-tight text-[#3730A3] dark:text-indigo-400 mt-0.5">
               {withHostVisits.length}
@@ -372,7 +519,7 @@ export const ReceptionPage: FC = () => {
           </div>
         </div>
 
-        {/* Completed / Left */}
+        {/* Completed */}
         <div className="p-3.5 rounded-xl border border-[#E4E2DC] dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center justify-between shadow-2xs hover:shadow-xs transition">
           <div>
             <div className="text-[11px] font-semibold text-[#5B6070] dark:text-slate-400 uppercase tracking-wider">
@@ -388,7 +535,7 @@ export const ReceptionPage: FC = () => {
         </div>
       </div>
 
-      {/* Filter Toolbar */}
+      {/* 4. Search and Date Filter Toolbar */}
       <div className="p-2.5 sm:p-3 rounded-xl border border-[#E4E2DC] dark:border-slate-800 bg-white dark:bg-slate-900 flex flex-wrap items-center justify-between gap-3 shadow-2xs">
         <div className="flex flex-wrap items-center gap-2.5 flex-1 min-w-[280px]">
           {/* Search bar */}
@@ -398,7 +545,7 @@ export const ReceptionPage: FC = () => {
               type="text"
               value={searchFilter}
               onChange={(e) => setSearchFilter(e.target.value)}
-              placeholder="Search visitor name, badge #, reference, host..."
+              placeholder="Search visitor name, badge #, reference code, host..."
               className="w-full pl-9 pr-8 py-1.5 text-xs rounded-lg border border-[#D5D2CA] dark:border-slate-700 bg-[#F7F6F2]/60 dark:bg-slate-800 text-[#16181D] dark:text-white placeholder:text-[#8C93A4] focus:outline-none focus:ring-1 focus:ring-[#1A3170] focus:border-[#1A3170] transition"
             />
             {searchFilter && (
@@ -411,15 +558,14 @@ export const ReceptionPage: FC = () => {
               </button>
             )}
           </div>
-
         </div>
 
-        {/* Date Selector & Scope Summary Indicator */}
+        {/* Date Selector & Scope Summary */}
         <div className="flex items-center gap-3">
           <div className="text-xs text-[#5B6070] dark:text-slate-400">
-            Viewing:{' '}
+            Active Records:{' '}
             <span className="font-semibold text-[#16181D] dark:text-white">
-              Campus Visitors ({visits.length})
+              {visits.length}
             </span>
           </div>
 
@@ -446,7 +592,7 @@ export const ReceptionPage: FC = () => {
         </div>
       </div>
 
-      {/* 5-Column Reception Kanban Board with Solid Unique Theme */}
+      {/* 5. 5-Column Reception Kanban Board */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3.5 items-start">
         {/* Column 1: EXPECTED */}
         <div className="flex flex-col rounded-2xl border border-[#E4E2DC] dark:border-slate-800 bg-[#F9F8F5] dark:bg-slate-900/40 overflow-hidden shadow-xs">
@@ -474,7 +620,7 @@ export const ReceptionPage: FC = () => {
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0 flex-1">
                       <div className="text-xs font-bold text-[#16181D] dark:text-white truncate">
-                        {visit.visitorName}
+                        {formatVisitorName(visit.visitorName)}
                       </div>
                       <div className="text-[11px] text-[#5B6070] dark:text-slate-400 truncate mt-0.5">
                         {visit.organization || 'Individual Visitor'}
@@ -490,9 +636,13 @@ export const ReceptionPage: FC = () => {
                     </span>
                   </div>
 
+                  {/* Clean Formatted Purpose Tag */}
                   {(visit.subject || visit.purpose) && (
-                    <div className="text-[11px] text-[#475569] dark:text-slate-400 line-clamp-2 bg-[#F8FAFC] dark:bg-slate-900/40 p-1.5 rounded border border-[#F1F5F9] dark:border-slate-800">
-                      {visit.purpose || visit.subject}
+                    <div className="flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] bg-slate-50 dark:bg-slate-900/60 text-slate-700 dark:text-slate-300 border border-slate-200/80 dark:border-slate-700">
+                      <FileText className="w-3 h-3 text-[#1A3170] dark:text-blue-400 shrink-0" />
+                      <span className="font-medium truncate">
+                        {formatPurposeCategory(visit.purpose, visit.subject)}
+                      </span>
                     </div>
                   )}
 
@@ -562,7 +712,7 @@ export const ReceptionPage: FC = () => {
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0 flex-1">
                       <div className="text-xs font-bold text-[#16181D] dark:text-white truncate">
-                        {visit.visitorName}
+                        {formatVisitorName(visit.visitorName)}
                       </div>
                       <div className="text-[11px] text-[#5B6070] dark:text-slate-400 truncate mt-0.5">
                         {visit.organization || 'Individual'} • Ref: {visit.referenceNo}
@@ -573,9 +723,13 @@ export const ReceptionPage: FC = () => {
                     </span>
                   </div>
 
+                  {/* Clean Formatted Purpose Tag (Replaces raw enum) */}
                   {(visit.subject || visit.purpose) && (
-                    <div className="text-[11px] text-[#475569] dark:text-slate-400 line-clamp-2 bg-[#FFFDF7] dark:bg-slate-900/40 p-1.5 rounded border border-[#FDE68A]/60">
-                      {visit.purpose || visit.subject}
+                    <div className="flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] bg-amber-50/60 dark:bg-amber-950/30 text-amber-900 dark:text-amber-200 border border-amber-200/70 dark:border-amber-800/60">
+                      <FileText className="w-3 h-3 text-amber-700 dark:text-amber-400 shrink-0" />
+                      <span className="font-medium truncate">
+                        {formatPurposeCategory(visit.purpose, visit.subject)}
+                      </span>
                     </div>
                   )}
 
@@ -588,7 +742,9 @@ export const ReceptionPage: FC = () => {
                     </div>
                     {visit.vehicleNo && (
                       <div className="flex items-center justify-between">
-                        <span className="text-[#8C93A4] dark:text-slate-500 text-[11px]">Vehicle:</span>
+                        <span className="text-[#8C93A4] dark:text-slate-500 text-[11px] flex items-center gap-1">
+                          <Car className="w-3 h-3" /> Vehicle:
+                        </span>
                         <span className="font-mono text-[#16181D] dark:text-slate-200 ml-2 font-semibold">
                           {visit.vehicleNo}
                         </span>
@@ -602,7 +758,7 @@ export const ReceptionPage: FC = () => {
                       onClick={() => setDenyVisit(visit)}
                       className="px-2.5 py-1 text-xs font-semibold text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-lg cursor-pointer transition-colors"
                     >
-                      Deny
+                      Deny Entry
                     </button>
                     <button
                       type="button"
@@ -645,7 +801,7 @@ export const ReceptionPage: FC = () => {
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0 flex-1">
                       <div className="text-xs font-bold text-[#16181D] dark:text-white truncate">
-                        {visit.visitorName}
+                        {formatVisitorName(visit.visitorName)}
                       </div>
                       <div className="text-[11px] text-[#5B6070] dark:text-slate-400 truncate mt-0.5">
                         {visit.organization || 'Visitor'}
@@ -708,6 +864,7 @@ export const ReceptionPage: FC = () => {
                         disabled={withHostMutation.isPending}
                         className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-lg bg-[#3B3F8C] hover:bg-[#2E3273] text-white cursor-pointer transition-colors shadow-2xs"
                       >
+                        <Bell className="w-3 h-3" />
                         <span>{withHostMutation.isPending ? 'Calling...' : 'Call In'}</span>
                         <ArrowRight className="w-3 h-3" />
                       </button>
@@ -719,12 +876,14 @@ export const ReceptionPage: FC = () => {
           </div>
         </div>
 
-        {/* Column 4: WITH HOST (Solid Royal Indigo Identity) */}
+        {/* Column 4: WITH HOST / IN CHAMBER */}
         <div className="flex flex-col rounded-2xl border border-[#E4E2DC] dark:border-slate-800 bg-[#F9F8F5] dark:bg-slate-900/40 overflow-hidden shadow-xs">
           <div className="px-3.5 py-2.5 border-b border-[#E2E8F0] dark:border-slate-800 bg-[#F8F9FE] dark:bg-slate-900/60 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-[#4F46E5]" />
-              <span className="text-xs font-semibold text-[#16181D] dark:text-white">With Host</span>
+              <span className="text-xs font-semibold text-[#16181D] dark:text-white">
+                {perspective === 'MY_CHAMBER' ? 'In Chamber' : 'With Host'}
+              </span>
             </div>
             <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-[#EEF2FF] text-[#3730A3] border border-[#C7D2FE]">
               {withHostVisits.length}
@@ -745,7 +904,7 @@ export const ReceptionPage: FC = () => {
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0 flex-1">
                       <div className="text-xs font-bold text-[#16181D] dark:text-white truncate">
-                        {visit.visitorName}
+                        {formatVisitorName(visit.visitorName)}
                       </div>
                       <div className="text-[11px] text-[#5B6070] dark:text-slate-400 truncate mt-0.5">
                         {visit.organization || 'Visitor'}
@@ -775,7 +934,7 @@ export const ReceptionPage: FC = () => {
                     </div>
                     {visit.withHostAt && (
                       <div className="flex items-center justify-between text-[11px] pt-0.5">
-                        <span className="text-[#8C93A4] dark:text-slate-500">In meeting since:</span>
+                        <span className="text-[#8C93A4] dark:text-slate-500">In session since:</span>
                         <span className="font-mono text-[#5B6070] dark:text-slate-400 font-semibold">
                           {new Date(visit.withHostAt).toLocaleTimeString([], {
                             hour: '2-digit',
@@ -793,7 +952,7 @@ export const ReceptionPage: FC = () => {
                       disabled={checkOutMutation.isPending}
                       className="px-3.5 py-1 text-xs font-semibold rounded-lg bg-[#334155] hover:bg-[#1E293B] text-white cursor-pointer transition-colors shadow-2xs"
                     >
-                      {checkOutMutation.isPending ? 'Checking Out...' : 'Check Out & Exit'}
+                      {checkOutMutation.isPending ? 'Ending Session...' : 'Conclude Meeting'}
                     </button>
                   </div>
                 </div>
@@ -828,7 +987,7 @@ export const ReceptionPage: FC = () => {
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0 flex-1">
                       <span className="font-bold text-xs text-[#16181D] dark:text-white truncate block">
-                        {visit.visitorName}
+                        {formatVisitorName(visit.visitorName)}
                       </span>
                       <div className="text-[11px] text-[#5B6070] dark:text-slate-400 truncate mt-0.5">
                         {visit.organization || 'Visitor'}
