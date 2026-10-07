@@ -18,9 +18,14 @@ import {
   ChevronDown,
   Search,
   X,
+  Layers,
+  Columns3,
+  ListFilter,
+  Calendar as CalendarIcon,
 } from 'lucide-react';
 import { TodoListView } from './TodoListView';
 import { TodoBoardView } from './TodoBoardView';
+import { TodoGanttView } from './TodoGanttView';
 import { TodoCalendarView } from './TodoCalendarView';
 import { TaskDetailDrawer } from './TaskDetailDrawer';
 
@@ -36,8 +41,8 @@ export const TodoPage: FC = () => {
   const isSuperAdmin = user?.roles?.includes(RoleCode.SUPER_ADMIN);
   const isPA = user?.roles?.includes(RoleCode.PA) || user?.roles?.includes(RoleCode.EA);
 
-  // Active view: list | board | calendar
-  const [activeView, setActiveView] = useState<'list' | 'board' | 'calendar'>('list');
+  // Active view: list | board | gantt | calendar
+  const [activeView, setActiveView] = useState<'list' | 'board' | 'gantt' | 'calendar'>('list');
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedScope, setSelectedScope] = useState<
@@ -438,7 +443,7 @@ export const TodoPage: FC = () => {
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
         {/* Left: View Switch + Filters */}
         <div className="flex flex-wrap items-center gap-2.5">
-          {/* View Switch: List | Board | Calendar */}
+          {/* ClickUp-style View Switch: List | Board | Timeline / Gantt | Calendar */}
           <div
             role="tablist"
             className="flex items-center gap-1 bg-[#ECEAE3] p-1 rounded-[10px]"
@@ -448,39 +453,56 @@ export const TodoPage: FC = () => {
               role="tab"
               aria-selected={activeView === 'list'}
               onClick={() => setActiveView('list')}
-              className={`h-[34px] px-3.5 rounded-[7px] border-0 text-[13px] transition cursor-pointer ${
+              className={`h-[34px] px-3.5 rounded-[7px] border-0 text-[13px] flex items-center gap-1.5 transition cursor-pointer ${
                 activeView === 'list'
                   ? 'bg-white text-[#16181D] font-semibold shadow-2xs'
                   : 'bg-transparent text-[#16181D] font-normal hover:text-black'
               }`}
             >
-              List
+              <ListFilter className="w-3.5 h-3.5" />
+              <span>List</span>
             </button>
             <button
               type="button"
               role="tab"
               aria-selected={activeView === 'board'}
               onClick={() => setActiveView('board')}
-              className={`h-[34px] px-3.5 rounded-[7px] border-0 text-[13px] transition cursor-pointer ${
+              className={`h-[34px] px-3.5 rounded-[7px] border-0 text-[13px] flex items-center gap-1.5 transition cursor-pointer ${
                 activeView === 'board'
                   ? 'bg-white text-[#16181D] font-semibold shadow-2xs'
                   : 'bg-transparent text-[#16181D] font-normal hover:text-black'
               }`}
             >
-              Board
+              <Columns3 className="w-3.5 h-3.5" />
+              <span>Board</span>
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeView === 'gantt'}
+              onClick={() => setActiveView('gantt')}
+              className={`h-[34px] px-3.5 rounded-[7px] border-0 text-[13px] flex items-center gap-1.5 transition cursor-pointer ${
+                activeView === 'gantt'
+                  ? 'bg-white text-[#16181D] font-semibold shadow-2xs'
+                  : 'bg-transparent text-[#16181D] font-normal hover:text-black'
+              }`}
+            >
+              <Layers className="w-3.5 h-3.5" />
+              <span>Timeline</span>
             </button>
             <button
               type="button"
               role="tab"
               aria-selected={activeView === 'calendar'}
               onClick={() => setActiveView('calendar')}
-              className={`h-[34px] px-3.5 rounded-[7px] border-0 text-[13px] transition cursor-pointer ${
+              className={`h-[34px] px-3.5 rounded-[7px] border-0 text-[13px] flex items-center gap-1.5 transition cursor-pointer ${
                 activeView === 'calendar'
                   ? 'bg-white text-[#16181D] font-semibold shadow-2xs'
                   : 'bg-transparent text-[#16181D] font-normal hover:text-black'
               }`}
             >
-              Calendar
+              <CalendarIcon className="w-3.5 h-3.5" />
+              <span>Calendar</span>
             </button>
           </div>
 
@@ -707,6 +729,18 @@ export const TodoPage: FC = () => {
             }}
             onSelectTask={(id) => setDrawerTaskId(id)}
             onReorder={(items) => reorderMutation.mutate(items)}
+            onUpdateStatus={async (id, status, reason) => {
+              await updateStatusMutation.mutateAsync({ id, status, reason });
+            }}
+            onQuickAddTask={(_status) => {
+              setModalTitle('');
+              setModalDueDate('');
+              setModalPriority(Priority.MEDIUM);
+              setModalCategory(TaskCategory.ADMIN);
+              setModalOfficialId(currentOfficialId);
+              setModalPersonal(false);
+              setIsNewTaskModalOpen(true);
+            }}
           />
         )}
 
@@ -721,8 +755,28 @@ export const TodoPage: FC = () => {
             onUpdateStatus={async (id, status, reason) => {
               await updateStatusMutation.mutateAsync({ id, status, reason });
             }}
+            onQuickAddTask={(_status) => {
+              setModalTitle('');
+              setModalDueDate('');
+              setModalPriority(Priority.MEDIUM);
+              setModalCategory(TaskCategory.ADMIN);
+              setModalOfficialId(currentOfficialId);
+              setModalPersonal(false);
+              setIsNewTaskModalOpen(true);
+            }}
           />
         </div>
+      )}
+
+      {/* ClickUp Gantt / Timeline View */}
+      {activeView === 'gantt' && (
+        <TodoGanttView
+          tasks={tasks}
+          onSelectTask={(id) => setDrawerTaskId(id)}
+          onUpdateStatus={async (id, status, reason) => {
+            await updateStatusMutation.mutateAsync({ id, status, reason });
+          }}
+        />
       )}
 
       {/* Calendar View */}
