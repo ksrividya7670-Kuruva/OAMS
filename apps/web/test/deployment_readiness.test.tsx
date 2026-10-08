@@ -5,6 +5,7 @@ import { MemoryRouter } from 'react-router';
 import { PublicHomePage } from '../src/features/home/PublicHomePage';
 import { LoginPage } from '../src/features/auth/LoginPage';
 import { MeetingDayDashboard } from '../src/features/meeting-day/MeetingDayDashboard';
+import { Layout } from '../src/app/layout';
 import { AuthProvider } from '../src/features/auth/AuthContext';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { RoleCode } from '@oams/shared';
@@ -151,6 +152,49 @@ describe('Deployment Readiness Suite', () => {
 
       // Verify Refresh button
       expect(screen.getByTitle(/Refresh Day Data/i)).toBeDefined();
+    });
+  });
+
+  describe('4. Role-Tailored Navigation (Layout)', () => {
+    it('removes operational schedule links for Admin and displays governance suite only', async () => {
+      const mockAdminUser = {
+        id: 'usr-admin-super',
+        orgId: 'org-apex-main',
+        email: 'admin@stmarysgroup.com',
+        fullName: 'System Administrator',
+        roles: [RoleCode.ADMIN],
+        status: 'ACTIVE',
+      };
+
+      sessionStorage.setItem('oams_user', JSON.stringify(mockAdminUser));
+      sessionStorage.setItem('oams_token', 'demo-token-usr-admin-super');
+
+      const queryClient = createTestQueryClient();
+      render(
+        <QueryClientProvider client={queryClient}>
+          <AuthProvider>
+            <MemoryRouter initialEntries={['/']}>
+              <Layout />
+            </MemoryRouter>
+          </AuthProvider>
+        </QueryClientProvider>
+      );
+
+      // Admin governance links MUST be present
+      await waitFor(() => {
+        expect(screen.getByRole('link', { name: /Users & Roles/i })).toBeDefined();
+        expect(screen.getByRole('link', { name: /Faculty Chambers/i })).toBeDefined();
+        expect(screen.getByRole('link', { name: /Executive Reports/i })).toBeDefined();
+        expect(screen.getByRole('link', { name: /Audit Logs/i })).toBeDefined();
+      });
+
+      // Operational schedule & reception links MUST NOT be present for admin
+      expect(screen.queryByRole('link', { name: /Today's Schedule/i })).toBeNull();
+      expect(screen.queryByRole('link', { name: /Triage Inbox/i })).toBeNull();
+      expect(screen.queryByRole('link', { name: /Master Calendar/i })).toBeNull();
+      expect(screen.queryByRole('link', { name: /Tasks & Follow-ups/i })).toBeNull();
+      expect(screen.queryByRole('link', { name: /Reception Desk/i })).toBeNull();
+      expect(screen.queryByRole('link', { name: /My Appointments/i })).toBeNull();
     });
   });
 });

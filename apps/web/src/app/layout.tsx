@@ -124,10 +124,15 @@ export const Layout: FC = () => {
     return 'OAMS';
   };
 
-  const isAdminUser =
-    hasRole(RoleCode.ADMIN) ||
-    hasRole(RoleCode.SUPER_ADMIN) ||
-    hasRole(RoleCode.APPOINTMENT_ADMIN);
+  const isAdminUser = Boolean(
+    user &&
+      (user.roles?.includes(RoleCode.ADMIN) ||
+        user.roles?.includes(RoleCode.SUPER_ADMIN) ||
+        user.roles?.includes(RoleCode.APPOINTMENT_ADMIN) ||
+        hasRole(RoleCode.ADMIN) ||
+        hasRole(RoleCode.SUPER_ADMIN) ||
+        hasRole(RoleCode.APPOINTMENT_ADMIN)),
+  );
 
   // Primary sidebar navigation items
   const primaryNavItems: NavItem[] = useMemo(() => {
@@ -152,7 +157,38 @@ export const Layout: FC = () => {
       ];
     }
 
-    // After sign-in: Uniform suite across all authenticated roles
+    // Admin users: Dedicated governance suite (no appointment operational/reception queue items)
+    if (isAdminUser) {
+      return [
+        {
+          to: '/',
+          label: 'Dashboard',
+          icon: <Home className="w-[18px] h-[18px] shrink-0" />,
+        },
+        {
+          to: '/admin/users',
+          label: 'Users & Roles',
+          icon: <Users className="w-[18px] h-[18px] shrink-0" />,
+        },
+        {
+          to: '/admin/officials',
+          label: 'Faculty Chambers',
+          icon: <Shield className="w-[18px] h-[18px] shrink-0" />,
+        },
+        {
+          to: '/admin/reports',
+          label: 'Executive Reports',
+          icon: <LayoutGrid className="w-[18px] h-[18px] shrink-0" />,
+        },
+        {
+          to: '/admin/audit',
+          label: 'Audit Logs',
+          icon: <ShieldCheck className="w-[18px] h-[18px] shrink-0" />,
+        },
+      ];
+    }
+
+    // After sign-in: Uniform suite across all non-admin operational roles
     return [
       {
         to: '/',
@@ -185,11 +221,16 @@ export const Layout: FC = () => {
         icon: <DoorOpen className="w-[18px] h-[18px] shrink-0" />,
       },
     ];
-  }, [user]);
+  }, [user, isAdminUser]);
 
   // Secondary items: Displayed below divider for authenticated roles (hidden before sign in)
   const secondaryNavItems: NavItem[] = useMemo(() => {
     if (!user) return [];
+
+    // Admin users: Don't show My Appointments
+    if (isAdminUser) {
+      return [];
+    }
 
     const items: NavItem[] = [
       {
@@ -198,32 +239,6 @@ export const Layout: FC = () => {
         icon: <Clock className="w-[18px] h-[18px] shrink-0" />,
       },
     ];
-
-    // Admin users also retain institutional governance links below My Appointments
-    if (isAdminUser) {
-      items.push(
-        {
-          to: '/admin/users',
-          label: 'Users & Roles',
-          icon: <Users className="w-[18px] h-[18px] shrink-0" />,
-        },
-        {
-          to: '/admin/officials',
-          label: 'Faculty Chambers',
-          icon: <Shield className="w-[18px] h-[18px] shrink-0" />,
-        },
-        {
-          to: '/admin/reports',
-          label: 'Executive Reports',
-          icon: <LayoutGrid className="w-[18px] h-[18px] shrink-0" />,
-        },
-        {
-          to: '/admin/audit',
-          label: 'Audit Logs',
-          icon: <ShieldCheck className="w-[18px] h-[18px] shrink-0" />,
-        },
-      );
-    }
 
     return items;
   }, [user, isAdminUser]);
