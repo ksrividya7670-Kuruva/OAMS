@@ -16,7 +16,7 @@ import {
 } from './mockData';
 import { RoleCode, AppointmentStatus, Priority, TaskStatus, VisitStatus } from '@oams/shared';
 
-const CURRENT_MOCK_VERSION = 'v33_todo_checklist_comments_reference_fix';
+const CURRENT_MOCK_VERSION = 'v34_comprehensive_audit_events_and_filters';
 if (typeof window !== 'undefined') {
   try {
     if (localStorage.getItem('oams_mock_data_version') !== CURRENT_MOCK_VERSION) {
@@ -3393,16 +3393,19 @@ export function handleMockRequest<T>(url: string, method: string = 'GET', body?:
 
   // 11. Audit Logs & Blockchain Hash Verification
   if (cleanUrl.includes('/audit/verify')) {
+    const rawEvents = getStorage('audit_events', INITIAL_AUDIT_EVENTS);
+    const events = Array.isArray(rawEvents) && rawEvents.length > 0 ? rawEvents : INITIAL_AUDIT_EVENTS;
+    const tipHash = events[0]?.hash || '0x9a8b7c6d5e4f3a2b1c0d9e8f7a6b5c4d';
     return {
       valid: true,
-      verifiedCount: 38,
-      tipHash: '0x9a8b7c6d5e4f3a2b1c0d9e8f7a6b5c4d',
+      verifiedCount: events.length,
+      tipHash: tipHash,
       lastVerifiedAt: new Date().toISOString(),
     } as unknown as T;
   }
   if (cleanUrl.includes('/audit')) {
     const rawEvents = getStorage('audit_events', INITIAL_AUDIT_EVENTS);
-    const events = (Array.isArray(rawEvents) && rawEvents.length > 0 ? rawEvents : INITIAL_AUDIT_EVENTS).map(
+    let events = (Array.isArray(rawEvents) && rawEvents.length > 0 ? rawEvents : INITIAL_AUDIT_EVENTS).map(
       (ev: any, idx: number) => {
         const fallbackHash =
           '0x' + (ev.id ? ev.id.replace(/[^a-f0-9]/gi, '') : 'hash' + idx).padEnd(32, 'a').slice(0, 34);
@@ -3415,6 +3418,34 @@ export function handleMockRequest<T>(url: string, method: string = 'GET', body?:
         };
       }
     );
+
+    // Apply filtering based on URL query parameters
+    try {
+      const qIndex = url.indexOf('?');
+      if (qIndex !== -1) {
+        const qp = new URLSearchParams(url.slice(qIndex));
+        const entityType = qp.get('entityType')?.trim().toLowerCase();
+        const action = qp.get('action')?.trim().toLowerCase();
+        const actorId = qp.get('actorId')?.trim().toLowerCase();
+
+        if (entityType) {
+          events = events.filter((ev: any) =>
+            ev.entity_type?.toLowerCase() === entityType
+          );
+        }
+        if (action) {
+          events = events.filter((ev: any) =>
+            ev.action?.toLowerCase().includes(action)
+          );
+        }
+        if (actorId) {
+          events = events.filter((ev: any) =>
+            ev.actor_id?.toLowerCase().includes(actorId)
+          );
+        }
+      }
+    } catch {}
+
     return { items: events, total: events.length } as unknown as T;
   }
 

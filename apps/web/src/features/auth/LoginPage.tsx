@@ -16,7 +16,7 @@ import {
   Phone,
   Building2,
 } from 'lucide-react';
-import { DEMO_PERSONAS } from '@/lib/mockData';
+import { DEMO_PERSONAS, INITIAL_AUDIT_EVENTS } from '@/lib/mockData';
 import { RoleCode } from '@oams/shared';
 
 interface LoginPageProps {
@@ -164,7 +164,7 @@ export const LoginPage: FC<LoginPageProps> = ({ initialMode = 'signin' }) => {
         // Record Audit Event
         try {
           const rawAudit = localStorage.getItem('oams_mock_audit_events');
-          const audits = rawAudit ? JSON.parse(rawAudit) : [];
+          const audits = rawAudit ? JSON.parse(rawAudit) : [...INITIAL_AUDIT_EVENTS];
           audits.unshift({
             id: `aud-${Date.now()}`,
             org_id: 'org-apex-main',
@@ -306,7 +306,7 @@ export const LoginPage: FC<LoginPageProps> = ({ initialMode = 'signin' }) => {
       // Audit log simulation
       try {
         const rawAudit = localStorage.getItem('oams_mock_audit_events');
-        const audits = rawAudit ? JSON.parse(rawAudit) : [];
+        const audits = rawAudit ? JSON.parse(rawAudit) : [...INITIAL_AUDIT_EVENTS];
         const prevHash = audits[0]?.hash || '0x9a8b7c6d5e4f3a2b1c0d9e8f7a6b5c4d';
         const newHash =
           '0x' +

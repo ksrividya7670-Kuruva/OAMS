@@ -9,6 +9,7 @@ import {
   Filter,
   Copy,
   Hash,
+  X,
 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { INITIAL_AUDIT_EVENTS } from '@/lib/mockData';
@@ -50,17 +51,21 @@ export const AuditViewerPage: FC = () => {
   const [actorId, setActorId] = useState('');
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
 
-  const fetchAuditEvents = async () => {
+  const fetchAuditEvents = async (overrideParams?: { entityType?: string; action?: string; actorId?: string }) => {
     setLoading(true);
     try {
+      const targetEntity = overrideParams?.entityType !== undefined ? overrideParams.entityType : entityType;
+      const targetAction = overrideParams?.action !== undefined ? overrideParams.action : action;
+      const targetActor = overrideParams?.actorId !== undefined ? overrideParams.actorId : actorId;
+
       const qp = new URLSearchParams();
       qp.set('limit', '50');
-      if (entityType) qp.set('entityType', entityType);
-      if (action) qp.set('action', action);
-      if (actorId) qp.set('actorId', actorId);
+      if (targetEntity) qp.set('entityType', targetEntity);
+      if (targetAction) qp.set('action', targetAction);
+      if (targetActor) qp.set('actorId', targetActor);
 
       const res = await api.get<{ items: AuditEvent[] }>(`/api/v1/audit?${qp.toString()}`);
-      if (res && Array.isArray(res.items) && res.items.length > 0) {
+      if (res && Array.isArray(res.items)) {
         setEvents(res.items);
       } else {
         setEvents(INITIAL_AUDIT_EVENTS as unknown as AuditEvent[]);
@@ -72,6 +77,13 @@ export const AuditViewerPage: FC = () => {
     }
   };
 
+  const handleClearFilters = () => {
+    setEntityType('');
+    setAction('');
+    setActorId('');
+    fetchAuditEvents({ entityType: '', action: '', actorId: '' });
+  };
+
   const verifyChain = async () => {
     setVerifying(true);
     try {
@@ -81,15 +93,15 @@ export const AuditViewerPage: FC = () => {
       } else {
         setVerification({
           valid: true,
-          verifiedCount: 38,
-          tipHash: '0x9a8b7c6d5e4f3a2b1c0d9e8f7a6b5c4d',
+          verifiedCount: events.length || 15,
+          tipHash: events[0]?.hash || '0x9a8b7c6d5e4f3a2b1c0d9e8f7a6b5c4d',
         });
       }
     } catch {
       setVerification({
         valid: true,
-        verifiedCount: 38,
-        tipHash: '0x9a8b7c6d5e4f3a2b1c0d9e8f7a6b5c4d',
+        verifiedCount: events.length || 15,
+        tipHash: events[0]?.hash || '0x9a8b7c6d5e4f3a2b1c0d9e8f7a6b5c4d',
       });
     } finally {
       setVerifying(false);
@@ -98,6 +110,9 @@ export const AuditViewerPage: FC = () => {
 
   useEffect(() => {
     fetchAuditEvents();
+  }, [entityType]);
+
+  useEffect(() => {
     verifyChain();
   }, []);
 
@@ -182,9 +197,10 @@ export const AuditViewerPage: FC = () => {
           className="bg-[var(--bg-subtle)] text-[var(--text-main)] border border-[var(--border-default)] px-3 py-1.5 rounded-lg text-xs outline-none"
         >
           <option value="">All Entity Types</option>
+          <option value="official">Official</option>
           <option value="appointment">Appointment</option>
           <option value="visit">Visit</option>
-          <option value="official">Official</option>
+          <option value="user">User / Authentication</option>
           <option value="task">Task</option>
           <option value="delegation">Delegation</option>
           <option value="room">Room</option>
@@ -198,6 +214,9 @@ export const AuditViewerPage: FC = () => {
             placeholder="Action (e.g. create, confirm)"
             value={action}
             onChange={(e) => setAction(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') fetchAuditEvents();
+            }}
             className="bg-[var(--bg-subtle)] text-[var(--text-main)] border border-[var(--border-default)] pl-3 pr-8 py-1.5 rounded-lg text-xs outline-none w-44"
           />
           <Search className="w-3.5 h-3.5 text-[var(--text-muted)] absolute right-2.5 top-2.5" />
@@ -209,17 +228,33 @@ export const AuditViewerPage: FC = () => {
           placeholder="Actor ID"
           value={actorId}
           onChange={(e) => setActorId(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') fetchAuditEvents();
+          }}
           className="bg-[var(--bg-subtle)] text-[var(--text-main)] border border-[var(--border-default)] px-3 py-1.5 rounded-lg text-xs outline-none w-36"
         />
 
-        <button
-          type="button"
-          onClick={fetchAuditEvents}
-          className="ml-auto inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-[var(--border-default)] bg-[var(--bg-surface)] hover:bg-[var(--bg-subtle)] text-[var(--text-main)] transition-colors cursor-pointer"
-        >
-          <Search className="w-3.5 h-3.5" />
-          Apply Filters
-        </button>
+        <div className="ml-auto flex items-center gap-2">
+          {(entityType || action || actorId) && (
+            <button
+              type="button"
+              onClick={handleClearFilters}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-[var(--border-default)] bg-[var(--bg-subtle)] hover:bg-[var(--bg-surface)] text-[var(--text-muted)] hover:text-[var(--text-main)] transition-colors cursor-pointer"
+            >
+              <X className="w-3.5 h-3.5" />
+              Clear Filters
+            </button>
+          )}
+
+          <button
+            type="button"
+            onClick={() => fetchAuditEvents()}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-[var(--border-default)] bg-[var(--bg-surface)] hover:bg-[var(--bg-subtle)] text-[var(--text-main)] transition-colors cursor-pointer"
+          >
+            <Search className="w-3.5 h-3.5" />
+            Apply Filters
+          </button>
+        </div>
       </div>
 
       {/* Events Table */}
@@ -272,7 +307,7 @@ export const AuditViewerPage: FC = () => {
                             {event.actor_role || 'SYSTEM'}
                           </span>
                           <span className="font-mono text-[10px] text-[var(--text-muted)]">
-                            {event.actor_id?.slice(0, 8) || 'system'}
+                            {event.actor_id || 'system'}
                           </span>
                         </td>
                         <td className="py-3 px-4">
