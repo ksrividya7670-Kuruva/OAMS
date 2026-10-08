@@ -685,8 +685,6 @@ export const LoginPage: FC<LoginPageProps> = ({ initialMode = 'signin' }) => {
                     <option value="bharathi@stmarysgroup.com">bharathi@stmarysgroup.com — President</option>
                     <option value="indhu@stmarysgroup.com">indhu@stmarysgroup.com — Joint Secretary & Staff</option>
                     <option value="janardhan@stmarysgroup.com">janardhan@stmarysgroup.com — Vice Principal / Admin</option>
-                    <option value="security@stmarysgroup.com">security@stmarysgroup.com — Security Gate 1</option>
-                    <option value="reception@stmarysgroup.com">reception@stmarysgroup.com — Front Desk Reception</option>
                   </select>
                 </div>
               </div>
