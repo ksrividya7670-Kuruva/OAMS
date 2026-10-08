@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { useNavigate } from 'react-router';
+import { useNavigate, useLocation } from 'react-router';
 import { useAuth } from '@/features/auth/AuthContext';
 import { api } from '@/lib/api';
 import type { AppointmentListItemDto } from '@oams/shared';
@@ -22,11 +22,15 @@ import {
   X,
   FileText,
   Filter,
+  Clock,
 } from 'lucide-react';
 
 export const MyAppointmentsPage: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, token } = useAuth();
+  const isTrackRoute = location.pathname.startsWith('/track');
+  const trackingPrefix = isTrackRoute ? '/track' : '/my/appointments';
   const [appointments, setAppointments] = useState<AppointmentListItemDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -184,12 +188,43 @@ export const MyAppointmentsPage: React.FC = () => {
         const matchOff =
           (apt.officialName || '').toLowerCase().includes(q) ||
           (apt.officialTitle || '').toLowerCase().includes(q);
-        if (!matchRef && !matchSubj && !matchOff) return false;
+        const matchId = (apt.id || '').toLowerCase().includes(q);
+        const matchReq =
+          ((apt as any).requesterName || '').toLowerCase().includes(q) ||
+          ((apt as any).requesterEmail || '').toLowerCase().includes(q);
+        if (!matchRef && !matchSubj && !matchOff && !matchId && !matchReq) return false;
       }
 
       return true;
     });
   }, [appointments, activeTab, searchQuery]);
+
+  const handleDirectTrack = () => {
+    const q = searchQuery.trim();
+    if (!q) return;
+
+    // Check exact referenceNo or ID
+    const exact = appointments.find(
+      (a) =>
+        a.referenceNo?.toLowerCase() === q.toLowerCase() ||
+        a.id.toLowerCase() === q.toLowerCase(),
+    );
+    if (exact) {
+      navigate(`${trackingPrefix}/${exact.id}`);
+      return;
+    }
+
+    // Check single filtered match
+    if (filteredAppointments.length === 1) {
+      navigate(`${trackingPrefix}/${filteredAppointments[0].id}`);
+      return;
+    }
+
+    // Direct reference search fallback
+    if (q.length >= 3) {
+      navigate(`${trackingPrefix}/${encodeURIComponent(q)}`);
+    }
+  };
 
   return (
     <div className="max-w-5xl mx-auto py-4 sm:py-6 px-3 sm:px-6 space-y-6">
@@ -199,16 +234,18 @@ export const MyAppointmentsPage: React.FC = () => {
           <div>
             <div className="flex items-center gap-2 mb-1.5">
               <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-[#1A3170]/10 dark:bg-blue-950/60 text-[#1A3170] dark:text-blue-300 font-mono text-[10px] font-bold uppercase tracking-wider border border-[#1A3170]/20">
-                <Shield className="w-3 h-3" />
-                Petition Registry &bull; Track 8
+                {isTrackRoute ? <Clock className="w-3 h-3" /> : <Shield className="w-3 h-3" />}
+                {isTrackRoute ? 'Track Appointment • Live Registry' : 'Petition Registry • Track 8'}
               </span>
               <span className="text-[11px] text-[#8C93A4]">&bull; Central Secretariat Ledger</span>
             </div>
             <h1 className="text-xl sm:text-2xl font-bold font-serif text-[#16181D] dark:text-white">
-              Official Appointment Petitions
+              {isTrackRoute ? 'Track Appointment' : 'Official Appointment Petitions'}
             </h1>
             <p className="text-xs text-[#5B6070] dark:text-[var(--text-muted)] mt-1 max-w-xl leading-relaxed">
-              Monitor review progress, secretariat triage status, digital security gate passes, and confirmed chamber schedules for your official audience requests.
+              {isTrackRoute
+                ? 'Enter your docket reference code or select an appointment below to view secretariat review status, scheduled hearing timings, and digital visitor gate pass.'
+                : 'Monitor review progress, secretariat triage status, digital security gate passes, and confirmed chamber schedules for your official audience requests.'}
             </p>
           </div>
 
@@ -313,25 +350,51 @@ export const MyAppointmentsPage: React.FC = () => {
       <div className="bg-white dark:bg-[var(--bg-surface)] border border-[#E4E2DC] dark:border-[var(--border-default)] rounded-2xl p-4 shadow-2xs space-y-3">
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
           {/* Search bar */}
-          <div className="relative flex-1">
-            <Search className="w-4 h-4 text-[#8C93A4] absolute left-3.5 top-3 pointer-events-none" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Filter by reference code (e.g. OAMS-2026), subject, or official name..."
-              className="w-full pl-10 pr-9 py-2.5 bg-[#FBFAF7] dark:bg-[var(--bg-main)] border border-[#D5D2CA] dark:border-[var(--border-default)] rounded-xl text-xs text-[#16181D] dark:text-white placeholder:text-[#8C93A4] focus:outline-none focus:ring-1 focus:ring-[#1A3170]"
-            />
-            {searchQuery && (
-              <button
-                type="button"
-                onClick={() => setSearchQuery('')}
-                className="absolute right-3 top-3 text-[#8C93A4] hover:text-[#16181D] cursor-pointer"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            )}
-          </div>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleDirectTrack();
+            }}
+            className="flex-1 flex items-center gap-2"
+          >
+            <div className="relative flex-1">
+              <Search className="w-4 h-4 text-[#8C93A4] absolute left-3.5 top-3 pointer-events-none" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleDirectTrack();
+                  }
+                }}
+                placeholder={
+                  isTrackRoute
+                    ? 'Enter reference code (e.g. OAMS-2026-00602), subject, or official...'
+                    : 'Filter by reference code (e.g. OAMS-2026), subject, or official name...'
+                }
+                className="w-full pl-10 pr-9 py-2.5 bg-[#FBFAF7] dark:bg-[var(--bg-main)] border border-[#D5D2CA] dark:border-[var(--border-default)] rounded-xl text-xs text-[#16181D] dark:text-white placeholder:text-[#8C93A4] focus:outline-none focus:ring-1 focus:ring-[#1A3170]"
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-3 top-3 text-[#8C93A4] hover:text-[#16181D] cursor-pointer"
+                  title="Clear search"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+            <button
+              type="submit"
+              className="px-4 py-2.5 bg-[#1A3170] hover:bg-[#132554] text-white text-xs font-semibold rounded-xl transition cursor-pointer shrink-0 shadow-2xs inline-flex items-center gap-1.5"
+            >
+              <span>Track</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </button>
+          </form>
 
           {/* Quick Clear Filter if active */}
           {(activeTab !== 'all' || searchQuery) && (
@@ -500,7 +563,7 @@ export const MyAppointmentsPage: React.FC = () => {
             return (
               <div
                 key={apt.id}
-                onClick={() => navigate(`/my/appointments/${apt.id}`)}
+                onClick={() => navigate(`${trackingPrefix}/${apt.id}`)}
                 className="bg-white dark:bg-[var(--bg-surface)] border border-[#E4E2DC] dark:border-[var(--border-default)] rounded-2xl p-5 sm:p-6 hover:border-[#1A3170]/40 transition-all cursor-pointer shadow-2xs hover:shadow-xs group space-y-3.5"
               >
                 {/* Meta Row: Reference Code, Status Pill, Priority Pill */}
@@ -617,7 +680,7 @@ export const MyAppointmentsPage: React.FC = () => {
                     type="button"
                     onClick={(e) => {
                       e.stopPropagation();
-                      navigate(`/my/appointments/${apt.id}`);
+                      navigate(`${trackingPrefix}/${apt.id}`);
                     }}
                     className="px-4 py-2 border border-[#D5D2CA] dark:border-[var(--border-default)] group-hover:border-[#1A3170] group-hover:bg-[#1A3170] text-[#16181D] dark:text-white group-hover:text-white text-xs font-semibold rounded-xl transition inline-flex items-center gap-1.5 shadow-2xs"
                   >

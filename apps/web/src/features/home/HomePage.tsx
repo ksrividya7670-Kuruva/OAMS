@@ -465,7 +465,7 @@ export const HomePage: FC = () => {
             </Link>
 
             <Link
-              to="/my/appointments"
+              to={user ? '/my/appointments' : '/track'}
               className="p-3.5 rounded-2xl border border-[#E4E2DC] dark:border-[#2A2F3D] bg-white dark:bg-[#1E222B] hover:border-[#1A3170] hover:bg-[#F7F6F2] transition text-center space-y-1.5 group shadow-2xs"
             >
               <div className="w-8 h-8 rounded-xl bg-[#F7F6F2] dark:bg-[#16181D] text-[#1A3170] mx-auto flex items-center justify-center group-hover:scale-105 transition-transform">

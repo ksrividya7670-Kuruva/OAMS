@@ -64,6 +64,8 @@ export const Layout: FC = () => {
       const path = location.pathname;
       if (path.startsWith('/app/appointments/')) {
         navigate('/app/inbox');
+      } else if (path.startsWith('/track/')) {
+        navigate('/track');
       } else if (path.startsWith('/my/appointments/')) {
         navigate('/my/appointments');
       } else if (path.startsWith('/app/settings/')) {
@@ -110,6 +112,8 @@ export const Layout: FC = () => {
     if (path.startsWith('/app/reception')) return 'Reception';
     if (path.startsWith('/app/security')) return 'Security Check-In';
     if (path.startsWith('/app/control-room')) return 'Control Room';
+    if (path.startsWith('/track/')) return 'Appointment Tracking';
+    if (path.startsWith('/track')) return 'Track Appointment';
     if (path.startsWith('/my/appointments/')) return 'Appointment Tracking';
     if (path.startsWith('/my/appointments')) return 'My Appointments';
     if (path.startsWith('/app/notifications') || path.startsWith('/notifications')) return 'Notifications';

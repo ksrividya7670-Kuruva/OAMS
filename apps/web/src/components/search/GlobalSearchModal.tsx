@@ -98,7 +98,8 @@ export const GlobalSearchModal: FC<GlobalSearchModalProps> = ({ isOpen, onClose 
       if (isStaffOrOfficial) {
         navigate(`/app/appointments/${item.id}`);
       } else {
-        navigate(`/my/appointments/${item.id}`);
+        const isTrackRoute = window.location.pathname.startsWith('/track') || !user;
+        navigate(isTrackRoute ? `/track/${item.id}` : `/my/appointments/${item.id}`);
       }
     } else if (item.type === 'task') {
       navigate('/app/todo');

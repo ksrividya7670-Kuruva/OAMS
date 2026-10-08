@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { useParams, useNavigate } from 'react-router';
+import { useParams, useNavigate, useLocation } from 'react-router';
 import { useAuth } from '@/features/auth/AuthContext';
 import { api } from '@/lib/api';
 import {
@@ -116,7 +116,12 @@ const STEPPER_STAGES = [
 export const AppointmentTrackingPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, token } = useAuth();
+
+  const isTrackRoute = location.pathname.startsWith('/track');
+  const backUrl = isTrackRoute ? '/track' : '/my/appointments';
+  const backLabel = isTrackRoute ? 'Back to Track Appointment' : 'Back to My Appointments';
 
   const [appointment, setAppointment] = useState<AppointmentDetailDto | null>(null);
   const [history, setHistory] = useState<AppointmentStatusHistoryDto[]>([]);
@@ -553,10 +558,10 @@ export const AppointmentTrackingPage: React.FC = () => {
             'The requested appointment record does not exist or you do not have permission to view it.'}
         </p>
         <button
-          onClick={() => navigate('/my/appointments')}
-          className="px-6 py-2 bg-[var(--primary)] text-white text-sm font-semibold rounded-xl"
+          onClick={() => navigate(backUrl)}
+          className="px-6 py-2 bg-[var(--primary)] text-white text-sm font-semibold rounded-xl cursor-pointer"
         >
-          Back to My Appointments
+          {backLabel}
         </button>
       </div>
     );
@@ -577,11 +582,11 @@ export const AppointmentTrackingPage: React.FC = () => {
     <div className="max-w-4xl mx-auto py-8 px-4 sm:px-6 space-y-6">
       <button
         type="button"
-        onClick={() => navigate('/my/appointments')}
+        onClick={() => navigate(backUrl)}
         className="inline-flex items-center gap-1.5 text-xs text-[#5B6070] hover:text-[#16181D] dark:text-[var(--text-muted)] dark:hover:text-[var(--text-main)] font-semibold cursor-pointer transition-colors group"
       >
         <ArrowLeft className="w-3.5 h-3.5 transition-transform group-hover:-translate-x-0.5" />
-        <span>Back to My Appointments</span>
+        <span>{backLabel}</span>
       </button>
 
       {/* Top Header Card */}
