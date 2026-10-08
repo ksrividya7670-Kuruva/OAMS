@@ -1,4 +1,4 @@
-import { type FC, useState, useMemo } from 'react';
+import { type FC, useState, useMemo, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { VisitStatus, RoleCode, type VisitDto } from '@oams/shared';
 import { useAuth } from '@/features/auth/AuthContext';
@@ -20,6 +20,9 @@ import {
   FileText,
   Car,
   Bell,
+  Phone,
+  Mail,
+  Users,
 } from 'lucide-react';
 import { LiveWaitTimer } from './LiveWaitTimer';
 import { CheckInModal } from './CheckInModal';
@@ -77,14 +80,17 @@ export const ReceptionPage: FC = () => {
   const isSecurityOrReception = hasRole(RoleCode.RECEPTION) || hasRole(RoleCode.SECURITY);
   const isSecretariat = hasRole(RoleCode.PA) || hasRole(RoleCode.EA);
 
-  // Role-derived perspective
-  const perspective: ReceptionPerspective = isOfficialOrFaculty
+  // Role-derived default perspective
+  const defaultPerspective: ReceptionPerspective = isOfficialOrFaculty
     ? 'MY_CHAMBER'
     : isSecurityOrReception
       ? 'GATE_SECURITY'
       : isSecretariat
         ? 'SECRETARIAT'
         : 'GATE_SECURITY';
+
+  const [selectedPerspective, setSelectedPerspective] = useState<ReceptionPerspective | null>(null);
+  const perspective = selectedPerspective || defaultPerspective;
 
   // Filters
   const [dateFilter, setDateFilter] = useState(() => new Date().toISOString().split('T')[0]);
@@ -97,18 +103,33 @@ export const ReceptionPage: FC = () => {
   const [isWalkInOpen, setIsWalkInOpen] = useState(false);
   const [isScannerOpen, setIsScannerOpen] = useState(false);
 
+  // Real-time synchronization: listen for appointment creation & visit updates across tabs/windows
+  useEffect(() => {
+    const handleSync = () => {
+      queryClient.invalidateQueries({ queryKey: ['visits'] });
+    };
+    window.addEventListener('oams-visits-updated', handleSync);
+    window.addEventListener('oams-visit-created', handleSync);
+    window.addEventListener('oams-appointments-updated', handleSync);
+    return () => {
+      window.removeEventListener('oams-visits-updated', handleSync);
+      window.removeEventListener('oams-visit-created', handleSync);
+      window.removeEventListener('oams-appointments-updated', handleSync);
+    };
+  }, [queryClient]);
+
   // Fetch visits list (auto-polls every 15s to keep board fresh)
   const {
     data: visitsData,
     isFetching,
     refetch,
   } = useQuery<{ visits: VisitDto[] }>({
-    queryKey: ['visits', dateFilter, searchFilter, user?.officialId, isOfficialOrFaculty],
+    queryKey: ['visits', dateFilter, searchFilter, user?.officialId, perspective, isOfficialOrFaculty],
     queryFn: () => {
       const params = new URLSearchParams();
-      if (dateFilter) params.append('date', dateFilter);
+      if (dateFilter && dateFilter !== 'ALL') params.append('date', dateFilter);
       if (searchFilter) params.append('search', searchFilter);
-      if (isOfficialOrFaculty && user?.officialId) {
+      if (perspective === 'MY_CHAMBER' && isOfficialOrFaculty && user?.officialId) {
         params.append('officialId', user.officialId);
       }
       return api.get<{ visits: VisitDto[] }>(`/api/v1/visits?${params.toString()}`);
@@ -122,9 +143,9 @@ export const ReceptionPage: FC = () => {
     return visitsData.visits || [];
   }, [visitsData]);
 
-  // Filter visits based on active role
+  // Filter visits based on active role & perspective
   const visits = useMemo(() => {
-    if (isOfficialOrFaculty) {
+    if (perspective === 'MY_CHAMBER' && isOfficialOrFaculty) {
       return allVisits.filter((v) => {
         if (user?.officialId && (v.hostOfficialId === user.officialId || (v as any).officialId === user.officialId)) return true;
         if (user?.fullName && v.hostOfficialName) {
@@ -135,7 +156,7 @@ export const ReceptionPage: FC = () => {
         return false;
       });
     }
-    if (isSecretariat && user?.assignedOfficialIds && user.assignedOfficialIds.length > 0) {
+    if (perspective === 'SECRETARIAT' && isSecretariat && user?.assignedOfficialIds && user.assignedOfficialIds.length > 0) {
       return allVisits.filter((v) =>
         user.assignedOfficialIds!.includes(v.hostOfficialId || (v as any).officialId),
       );
@@ -160,7 +181,7 @@ export const ReceptionPage: FC = () => {
       });
     }
     return allVisits;
-  }, [allVisits, isOfficialOrFaculty, isSecretariat, isSecurityOrReception, hasRole, user]);
+  }, [allVisits, perspective, isOfficialOrFaculty, isSecretariat, isSecurityOrReception, hasRole, user]);
 
   // Helper to update local query cache immediately for instant, responsive UX
   const updateVisitStatusInCache = (
@@ -214,7 +235,15 @@ export const ReceptionPage: FC = () => {
   });
 
   // Group visits into 5 Kanban columns
-  const expectedVisits = visits.filter((v) => v.status === VisitStatus.EXPECTED);
+  const expectedVisits = visits.filter(
+    (v) =>
+      v.status === VisitStatus.EXPECTED ||
+      (v.status as any) === 'UNDER_REVIEW' ||
+      (v.status as any) === 'SUBMITTED' ||
+      (v.status as any) === 'PENDING_APPROVAL' ||
+      (v.status as any) === 'REQUESTED' ||
+      (v.status as any) === 'CONFIRMED',
+  );
   const arrivedVisits = visits.filter((v) => v.status === VisitStatus.ARRIVED);
   const waitingVisits = visits.filter((v) => v.status === VisitStatus.CHECKED_IN);
   const withHostVisits = visits.filter((v) => v.status === VisitStatus.WITH_HOST);
@@ -378,9 +407,9 @@ export const ReceptionPage: FC = () => {
   return (
     <div className="space-y-4">
       {/* 1. Page Header with Role Identity */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-1">
-        <div>
-          <div className="flex items-center gap-3">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pb-1">
+        <div className="space-y-1 min-w-0">
+          <div className="flex items-center gap-2.5 flex-wrap">
             <h1 className="font-sans text-xl sm:text-2xl font-bold tracking-tight text-[#16181D] dark:text-white">
               {headerInfo.title}
             </h1>
@@ -391,61 +420,61 @@ export const ReceptionPage: FC = () => {
               {headerInfo.badge}
             </span>
           </div>
-          <p className="text-xs text-[#5B6070] dark:text-slate-400 mt-1">
+          <p className="text-xs text-[#5B6070] dark:text-slate-400">
             {headerInfo.subtitle}
           </p>
         </div>
 
-        {/* Header Action Buttons */}
-        <div className="flex flex-wrap items-center gap-2">
+        {/* Header Action Buttons - Side by Side & Clean */}
+        <div className="flex items-center gap-2 flex-nowrap shrink-0 overflow-x-auto max-w-full pb-0.5">
           {perspective === 'GATE_SECURITY' ? (
             <button
               type="button"
               onClick={() => setIsScannerOpen(true)}
-              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold rounded-lg bg-[#1A3170] hover:bg-[#132554] text-white cursor-pointer transition-colors shadow-xs"
+              className="inline-flex items-center gap-1.5 px-3 sm:px-3.5 py-2 text-xs font-semibold rounded-xl bg-[#1A3170] hover:bg-[#132554] text-white cursor-pointer transition-colors shadow-xs whitespace-nowrap shrink-0"
             >
               <QrCode className="w-3.5 h-3.5" />
-              Scan Pass / QR
+              <span>Scan Pass / QR</span>
             </button>
           ) : (
             <button
               type="button"
               onClick={() => setIsScannerOpen(true)}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border border-[#D5D2CA] dark:border-slate-700 bg-white dark:bg-slate-800 text-[#16181D] dark:text-slate-200 hover:bg-[#F7F6F2] dark:hover:bg-slate-700/60 cursor-pointer transition-colors shadow-2xs"
+              className="inline-flex items-center gap-1.5 px-3 sm:px-3.5 py-2 text-xs font-semibold rounded-xl border border-[#D5D2CA] dark:border-slate-700 bg-white dark:bg-slate-800 text-[#16181D] dark:text-slate-200 hover:bg-[#F7F6F2] dark:hover:bg-slate-700/60 cursor-pointer transition-colors shadow-2xs whitespace-nowrap shrink-0"
             >
               <QrCode className="w-3.5 h-3.5 text-[#1A3170] dark:text-blue-400" />
-              Scan Pass / QR
+              <span>Scan Pass / QR</span>
             </button>
           )}
 
           <button
             type="button"
             onClick={handlePrintDailyRoster}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border border-[#D5D2CA] dark:border-slate-700 bg-white dark:bg-slate-800 text-[#16181D] dark:text-slate-200 hover:bg-[#F7F6F2] dark:hover:bg-slate-700/60 cursor-pointer transition-colors shadow-2xs"
+            className="inline-flex items-center gap-1.5 px-3 sm:px-3.5 py-2 text-xs font-semibold rounded-xl border border-[#D5D2CA] dark:border-slate-700 bg-white dark:bg-slate-800 text-[#16181D] dark:text-slate-200 hover:bg-[#F7F6F2] dark:hover:bg-slate-700/60 cursor-pointer transition-colors shadow-2xs whitespace-nowrap shrink-0"
             title="Open printable register roster"
           >
             <Download className="w-3.5 h-3.5 text-[#475569] dark:text-slate-400" />
-            Daily List (PDF)
+            <span>Daily List (PDF)</span>
           </button>
 
           <button
             type="button"
             onClick={() => setIsWalkInOpen(true)}
-            className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold rounded-lg cursor-pointer transition-colors shadow-xs ${
+            className={`inline-flex items-center gap-1.5 px-3 sm:px-3.5 py-2 text-xs font-semibold rounded-xl cursor-pointer transition-colors shadow-xs whitespace-nowrap shrink-0 ${
               perspective === 'GATE_SECURITY'
                 ? 'border border-[#D5D2CA] dark:border-slate-700 bg-white dark:bg-slate-800 text-[#16181D] dark:text-slate-200 hover:bg-[#F7F6F2]'
                 : 'bg-[#1A3170] hover:bg-[#132554] text-white'
             }`}
           >
             <UserPlus className="w-3.5 h-3.5" />
-            {perspective === 'MY_CHAMBER' ? 'Register Guest' : 'Register Walk-in'}
+            <span>{perspective === 'MY_CHAMBER' ? 'Register Guest' : 'Register Walk-in'}</span>
           </button>
 
           <button
             type="button"
             onClick={() => refetch()}
             disabled={isFetching}
-            className="p-1.5 rounded-lg border border-[#D5D2CA] dark:border-slate-700 bg-white dark:bg-slate-800 text-[#5B6070] hover:text-[#16181D] hover:bg-[#F7F6F2] dark:hover:bg-slate-700/60 cursor-pointer transition-colors shadow-2xs"
+            className="w-9 h-9 inline-flex items-center justify-center rounded-xl border border-[#D5D2CA] dark:border-slate-700 bg-white dark:bg-slate-800 text-[#5B6070] hover:text-[#16181D] hover:bg-[#F7F6F2] dark:hover:bg-slate-700/60 cursor-pointer transition-colors shadow-2xs shrink-0"
             title="Refresh Board"
           >
             <RefreshCw
@@ -454,6 +483,51 @@ export const ReceptionPage: FC = () => {
           </button>
         </div>
       </div>
+
+      {/* Quick Perspective Switcher for Officials / Staff */}
+      {(isOfficialOrFaculty || isSecretariat || isSecurityOrReception) && (
+        <div className="flex items-center gap-2 pt-0.5">
+          <div className="inline-flex items-center gap-1 p-0.5 rounded-xl bg-[#F0EFEA] dark:bg-slate-800 border border-[#E2E8F0] dark:border-slate-700 text-xs shadow-2xs">
+            {isOfficialOrFaculty && (
+              <button
+                type="button"
+                onClick={() => setSelectedPerspective('MY_CHAMBER')}
+                className={`px-3 py-1 rounded-lg text-xs font-semibold transition cursor-pointer ${
+                  perspective === 'MY_CHAMBER'
+                    ? 'bg-white dark:bg-slate-900 text-[#1A3170] dark:text-blue-400 shadow-2xs'
+                    : 'text-[#64748B] hover:text-[#16181D] dark:hover:text-white'
+                }`}
+              >
+                My Chamber
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => setSelectedPerspective('GATE_SECURITY')}
+              className={`px-3 py-1 rounded-lg text-xs font-semibold transition cursor-pointer ${
+                perspective === 'GATE_SECURITY'
+                  ? 'bg-white dark:bg-slate-900 text-[#1A3170] dark:text-blue-400 shadow-2xs'
+                  : 'text-[#64748B] hover:text-[#16181D] dark:hover:text-white'
+              }`}
+            >
+              All Campus Visitors (Gate 1)
+            </button>
+            {isSecretariat && (
+              <button
+                type="button"
+                onClick={() => setSelectedPerspective('SECRETARIAT')}
+                className={`px-3 py-1 rounded-lg text-xs font-semibold transition cursor-pointer ${
+                  perspective === 'SECRETARIAT'
+                    ? 'bg-white dark:bg-slate-900 text-[#1A3170] dark:text-blue-400 shadow-2xs'
+                    : 'text-[#64748B] hover:text-[#16181D] dark:hover:text-white'
+                }`}
+              >
+                Secretariat Triage
+              </button>
+            )}
+          </div>
+        </div>
+      )}
 
 
 
@@ -575,7 +649,7 @@ export const ReceptionPage: FC = () => {
             <span className="text-xs text-[#5B6070] dark:text-slate-400 font-medium">Date:</span>
             <input
               type="date"
-              value={dateFilter}
+              value={dateFilter === 'ALL' ? '' : dateFilter}
               onChange={(e) => setDateFilter(e.target.value)}
               className="px-2.5 py-1 text-xs rounded-lg border border-[#D5D2CA] dark:border-slate-700 bg-white dark:bg-slate-800 text-[#16181D] dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-[#1A3170] cursor-pointer"
             />
@@ -583,11 +657,22 @@ export const ReceptionPage: FC = () => {
               <button
                 type="button"
                 onClick={() => setDateFilter(new Date().toISOString().split('T')[0])}
-                className="px-2 py-0.5 text-[11px] font-semibold text-[#1A3170] hover:underline cursor-pointer"
+                className="px-2 py-0.5 text-[11px] font-semibold text-[#1A3170] dark:text-blue-400 hover:underline cursor-pointer"
               >
                 Today
               </button>
             )}
+            <button
+              type="button"
+              onClick={() => setDateFilter(dateFilter === 'ALL' ? new Date().toISOString().split('T')[0] : 'ALL')}
+              className={`px-2.5 py-1 text-[11px] font-semibold rounded-lg border transition cursor-pointer ${
+                dateFilter === 'ALL'
+                  ? 'bg-[#1A3170] text-white border-[#1A3170]'
+                  : 'border-[#D5D2CA] dark:border-slate-700 bg-white dark:bg-slate-800 text-[#5B6070] dark:text-slate-300 hover:bg-[#F7F6F2]'
+              }`}
+            >
+              {dateFilter === 'ALL' ? 'Showing All Dates' : 'All Dates'}
+            </button>
           </div>
         </div>
       </div>
@@ -622,27 +707,80 @@ export const ReceptionPage: FC = () => {
                       <div className="text-xs font-bold text-[#16181D] dark:text-white truncate">
                         {formatVisitorName(visit.visitorName)}
                       </div>
-                      <div className="text-[11px] text-[#5B6070] dark:text-slate-400 truncate mt-0.5">
-                        {visit.organization || 'Individual Visitor'}
+                      <div className="flex items-center gap-1.5 text-[11px] text-[#5B6070] dark:text-slate-400 truncate mt-0.5">
+                        <span>{visit.organization || 'Individual Requester'}</span>
+                        {visit.partySize && visit.partySize > 1 && (
+                          <span className="inline-flex items-center gap-0.5 font-semibold text-[#1A3170] dark:text-blue-300">
+                            • <Users className="w-3 h-3 ml-0.5" /> {visit.partySize}
+                          </span>
+                        )}
                       </div>
                     </div>
-                    <span className="text-[10px] font-mono text-[#1E40AF] dark:text-blue-400 bg-[#EFF6FF] dark:bg-blue-950/50 border border-[#BFDBFE] dark:border-blue-900 px-1.5 py-0.5 rounded shrink-0 font-semibold">
-                      {visit.scheduledStartTime
-                        ? new Date(visit.scheduledStartTime).toLocaleTimeString([], {
-                            hour: '2-digit',
-                            minute: '2-digit',
-                          })
-                        : 'Today'}
-                    </span>
+                    <div className="flex flex-col items-end gap-1 shrink-0">
+                      <span className="text-[10px] font-mono text-[#1E40AF] dark:text-blue-400 bg-[#EFF6FF] dark:bg-blue-950/50 border border-[#BFDBFE] dark:border-blue-900 px-1.5 py-0.5 rounded font-semibold">
+                        {visit.scheduledStartTime
+                          ? new Date(visit.scheduledStartTime).toLocaleTimeString([], {
+                              hour: '2-digit',
+                              minute: '2-digit',
+                            })
+                          : 'Today'}
+                      </span>
+                      <span className="text-[9px] font-mono font-bold text-slate-500 dark:text-slate-400">
+                        {visit.referenceNo}
+                      </span>
+                    </div>
                   </div>
 
-                  {/* Clean Formatted Purpose Tag */}
+                  {/* Requester Contact Coordinates */}
+                  {(visit.phone || visit.email) && (
+                    <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[11px] text-[#475569] dark:text-slate-400 bg-[#F8FAFC] dark:bg-slate-900/60 p-1.5 rounded-lg border border-[#E2E8F0] dark:border-slate-800">
+                      {visit.phone && (
+                        <a
+                          href={`tel:${visit.phone}`}
+                          className="inline-flex items-center gap-1 hover:text-[#1A3170] dark:hover:text-blue-400 font-mono"
+                          title="Call Requester"
+                        >
+                          <Phone className="w-3 h-3 text-[#2563EB]" />
+                          <span>{visit.phone}</span>
+                        </a>
+                      )}
+                      {visit.email && (
+                        <a
+                          href={`mailto:${visit.email}`}
+                          className="inline-flex items-center gap-1 hover:text-[#1A3170] dark:hover:text-blue-400 truncate max-w-[170px]"
+                          title={visit.email}
+                        >
+                          <Mail className="w-3 h-3 text-[#2563EB]" />
+                          <span className="truncate">{visit.email}</span>
+                        </a>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Dynamic Request Status Pill if newly submitted */}
+                  {((visit as any).appointmentStatus === 'UNDER_REVIEW' ||
+                    (visit as any).appointmentStatus === 'SUBMITTED' ||
+                    (visit as any).appointmentStatus === 'PENDING_APPROVAL') && (
+                    <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-50 dark:bg-amber-950/50 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
+                      <Clock className="w-2.5 h-2.5 text-amber-600" />
+                      <span>Request Under Review</span>
+                    </div>
+                  )}
+
+                  {/* Clean Formatted Purpose Tag & Subject */}
                   {(visit.subject || visit.purpose) && (
-                    <div className="flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] bg-slate-50 dark:bg-slate-900/60 text-slate-700 dark:text-slate-300 border border-slate-200/80 dark:border-slate-700">
-                      <FileText className="w-3 h-3 text-[#1A3170] dark:text-blue-400 shrink-0" />
-                      <span className="font-medium truncate">
-                        {formatPurposeCategory(visit.purpose, visit.subject)}
-                      </span>
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] bg-slate-50 dark:bg-slate-900/60 text-slate-700 dark:text-slate-300 border border-slate-200/80 dark:border-slate-700">
+                        <FileText className="w-3 h-3 text-[#1A3170] dark:text-blue-400 shrink-0" />
+                        <span className="font-medium truncate">
+                          {formatPurposeCategory(visit.purpose, visit.subject)}
+                        </span>
+                      </div>
+                      {visit.subject && (
+                        <p className="text-[11px] text-[#64748B] dark:text-slate-400 italic line-clamp-1 pl-1">
+                          "{visit.subject}"
+                        </p>
+                      )}
                     </div>
                   )}
 

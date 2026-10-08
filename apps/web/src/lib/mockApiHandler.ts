@@ -16,7 +16,7 @@ import {
 } from './mockData';
 import { RoleCode, AppointmentStatus, Priority, TaskStatus, VisitStatus } from '@oams/shared';
 
-const CURRENT_MOCK_VERSION = 'v29_uniform_modules_chamber_isolation';
+const CURRENT_MOCK_VERSION = 'v31_dynamic_reception_requester_sync';
 if (typeof window !== 'undefined') {
   try {
     if (localStorage.getItem('oams_mock_data_version') !== CURRENT_MOCK_VERSION) {
@@ -640,6 +640,13 @@ export function handleMockRequest<T>(url: string, method: string = 'GET', body?:
       const scheduledStart = body?.scheduledStartTime || `${prefWin.date}T${prefWin.from}:00.000Z`;
       const scheduledEnd = body?.scheduledEndTime || `${prefWin.date}T${prefWin.to}:00.000Z`;
 
+      const primaryAttendee = body?.attendees?.[0] || {};
+      const reqName = primaryAttendee.name || body?.requesterName || 'Requester';
+      const reqEmail = primaryAttendee.email || body?.requesterEmail || 'requester@example.com';
+      const reqPhone = primaryAttendee.phone || body?.requesterPhone || body?.phone || '+91 98450 00000';
+      const reqOrg = primaryAttendee.organization || body?.requesterOrg || body?.organization || 'Individual Requester';
+      const partySize = Array.isArray(body?.attendees) && body.attendees.length > 0 ? body.attendees.length : (body?.partySize || 1);
+
       const newApt = {
         id: `apt-${Date.now()}`,
         referenceNo: newRef,
@@ -654,19 +661,69 @@ export function handleMockRequest<T>(url: string, method: string = 'GET', body?:
         officialName: off.fullName || off.full_name || 'Mr. KVK',
         officialTitle: off.title || 'Chairman',
         departmentName: off.departmentName || 'Office of the Chairman',
-        requesterName: body?.attendees?.[0]?.name || 'Citizen Requester',
-        requesterEmail: body?.attendees?.[0]?.email || 'requester@example.com',
+        requesterName: reqName,
+        requesterEmail: reqEmail,
+        requesterPhone: reqPhone,
+        requesterOrganization: reqOrg,
         preferredWindows: body?.preferredWindows || [prefWin],
         scheduledStartTime: scheduledStart,
         scheduledEndTime: scheduledEnd,
         durationMin: body?.durationMin || 30,
         slaDueAt: new Date(Date.now() + 24 * 3600 * 1000).toISOString(),
-        location: body?.location || 'Chamber 101 (Executive Suite)',
-        attendees: body?.attendees || [],
+        location: body?.location || `${off.fullName || 'Official'}'s Chamber`,
+        attendees: body?.attendees || [primaryAttendee],
+        partySize: partySize,
         createdAt: new Date().toISOString(),
       };
       appointments.unshift(newApt);
       setStorage('appointments', appointments);
+
+      // Dynamically add Visit entry in visits store so Reception Desk updates instantly
+      try {
+        const visits: any[] = getStorage('visits', INITIAL_VISITS);
+        const qrTokenNum = newRef.split('-').pop() || String(Math.floor(10000 + Math.random() * 90000));
+        const newVisit = {
+          id: `vis-${newApt.id}`,
+          orgId: 'org-apex-main',
+          appointmentId: newApt.id,
+          referenceNo: newRef,
+          qrToken: qrTokenNum,
+          visitorName: reqName,
+          phone: reqPhone,
+          email: reqEmail,
+          organization: reqOrg,
+          idType: 'AADHAAR',
+          idLast4: 'XXXX',
+          vehicleNo: body?.vehicleNo || null,
+          partySize: partySize,
+          status: VisitStatus.EXPECTED,
+          appointmentStatus: newApt.status,
+          badgeNo: null,
+          badgeNumber: null,
+          hostOfficialId: newApt.officialId,
+          hostOfficialName: newApt.officialName,
+          officialName: newApt.officialName,
+          hostOfficialTitle: newApt.officialTitle,
+          scheduledStartTime: scheduledStart,
+          scheduledEndTime: scheduledEnd,
+          scheduledAt: scheduledStart,
+          roomName: newApt.location,
+          building: 'Main Secretariat',
+          floor: '1st Floor',
+          subject: newApt.subject,
+          purpose: newApt.purpose,
+          createdAt: newApt.createdAt,
+          updatedAt: newApt.createdAt,
+        };
+        visits.unshift(newVisit);
+        setStorage('visits', visits);
+
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('oams-visit-created', { detail: newVisit }));
+          window.dispatchEvent(new CustomEvent('oams-visits-updated'));
+          window.dispatchEvent(new CustomEvent('oams-appointments-updated'));
+        }
+      } catch {}
 
       // Dynamically add in-app notification
       try {
@@ -1868,8 +1925,123 @@ export function handleMockRequest<T>(url: string, method: string = 'GET', body?:
 
   // 6. Reception & Security Visits (§15)
   if (cleanUrl.includes('/visits') || cleanUrl.includes('/reception') || cleanUrl.includes('/security')) {
-    const visits: any[] = getStorage('visits', INITIAL_VISITS);
+    let visits: any[] = getStorage('visits', INITIAL_VISITS);
+    const appointments: any[] = getStorage('appointments', INITIAL_APPOINTMENTS);
     const officials: any[] = getStorage('officials', INITIAL_OFFICIALS);
+
+    // 1. Normalize demo visits so they stay anchored to current local date
+    const todayStr = new Date().toISOString().split('T')[0];
+    let visitsNeedUpdate = false;
+    visits = visits.map((v: any) => {
+      if (v.id && !v.id.startsWith('vis-apt-') && !v.appointmentId?.startsWith('apt-')) {
+        if (v.scheduledStartTime && !v.scheduledStartTime.startsWith(todayStr)) {
+          const timePart = v.scheduledStartTime.split('T')[1] || '10:00:00.000Z';
+          const endTimePart = v.scheduledEndTime ? v.scheduledEndTime.split('T')[1] || '11:00:00.000Z' : '11:00:00.000Z';
+          visitsNeedUpdate = true;
+          return {
+            ...v,
+            scheduledStartTime: `${todayStr}T${timePart}`,
+            scheduledEndTime: `${todayStr}T${endTimePart}`,
+            scheduledAt: `${todayStr}T${timePart}`,
+          };
+        }
+      }
+      return v;
+    });
+
+    // 2. Dynamic bidirectional sync: Ensure every appointment dynamically reflects in Reception Desk
+    for (const apt of appointments) {
+      if (!apt || !apt.id || apt.status === 'CANCELLED' || apt.status === 'REJECTED') continue;
+      const existingVIdx = visits.findIndex(
+        (v: any) => v.appointmentId === apt.id || v.referenceNo === apt.referenceNo || v.id === `vis-${apt.id}`,
+      );
+
+      const firstAtt = apt.attendees?.[0] || {};
+      const vName = apt.requesterName || firstAtt.name || 'Requester';
+      const vEmail = apt.requesterEmail || firstAtt.email || '';
+      const vPhone = apt.requesterPhone || firstAtt.phone || '';
+      const vOrg = apt.requesterOrganization || firstAtt.organization || 'Individual Requester';
+      const pSize = Array.isArray(apt.attendees) && apt.attendees.length > 0 ? apt.attendees.length : (apt.partySize || 1);
+
+      let vStatus: VisitStatus = VisitStatus.EXPECTED;
+      if (apt.status === AppointmentStatus.CHECKED_IN) vStatus = VisitStatus.CHECKED_IN;
+      else if (apt.status === AppointmentStatus.IN_PROGRESS) vStatus = VisitStatus.WITH_HOST;
+      else if (apt.status === AppointmentStatus.COMPLETED || apt.status === AppointmentStatus.CLOSED) vStatus = VisitStatus.CHECKED_OUT;
+
+      if (existingVIdx >= 0) {
+        // Keep in sync with latest appointment updates
+        const existing = visits[existingVIdx];
+        if (
+          existing.visitorName !== vName ||
+          existing.phone !== vPhone ||
+          existing.email !== vEmail ||
+          existing.appointmentStatus !== apt.status ||
+          existing.hostOfficialId !== apt.officialId
+        ) {
+          visits[existingVIdx] = {
+            ...existing,
+            visitorName: vName,
+            phone: vPhone,
+            email: vEmail,
+            organization: vOrg,
+            partySize: pSize,
+            appointmentStatus: apt.status,
+            hostOfficialId: apt.officialId,
+            hostOfficialName: apt.officialName,
+            officialName: apt.officialName,
+            scheduledStartTime: apt.scheduledStartTime || existing.scheduledStartTime,
+            scheduledEndTime: apt.scheduledEndTime || existing.scheduledEndTime,
+            subject: apt.subject,
+            purpose: apt.purpose,
+            updatedAt: new Date().toISOString(),
+          };
+          visitsNeedUpdate = true;
+        }
+      } else {
+        // Create corresponding Visit pass
+        const qrTokenNum = (apt.referenceNo || '').split('-').pop() || String(Math.floor(10000 + Math.random() * 90000));
+        const newV = {
+          id: `vis-${apt.id}`,
+          orgId: 'org-apex-main',
+          appointmentId: apt.id,
+          referenceNo: apt.referenceNo,
+          qrToken: qrTokenNum,
+          visitorName: vName,
+          phone: vPhone,
+          email: vEmail,
+          organization: vOrg,
+          idType: 'AADHAAR',
+          idLast4: 'XXXX',
+          vehicleNo: apt.vehicleNo || null,
+          partySize: pSize,
+          status: vStatus,
+          appointmentStatus: apt.status,
+          badgeNo: apt.badgeNo || null,
+          badgeNumber: apt.badgeNo || null,
+          hostOfficialId: apt.officialId,
+          hostOfficialName: apt.officialName,
+          officialName: apt.officialName,
+          hostOfficialTitle: apt.officialTitle,
+          scheduledStartTime: apt.scheduledStartTime || apt.createdAt || new Date().toISOString(),
+          scheduledEndTime: apt.scheduledEndTime || new Date(Date.now() + 3600000).toISOString(),
+          scheduledAt: apt.scheduledStartTime || apt.createdAt || new Date().toISOString(),
+          roomName: apt.location || (apt.officialName ? `${apt.officialName}'s Chamber` : 'Main Secretariat'),
+          building: 'Main Secretariat',
+          floor: '1st Floor',
+          subject: apt.subject,
+          purpose: apt.purpose,
+          createdAt: apt.createdAt || new Date().toISOString(),
+          updatedAt: apt.updatedAt || apt.createdAt || new Date().toISOString(),
+        };
+        visits.unshift(newV);
+        visitsNeedUpdate = true;
+      }
+    }
+
+    if (visitsNeedUpdate) {
+      setStorage('visits', visits);
+    }
+
     const queryParams = new URLSearchParams(url.includes('?') ? url.split('?')[1] : '');
 
     // 6.1 Pass / QR Lookup (GET or POST)
@@ -2309,13 +2481,33 @@ export function handleMockRequest<T>(url: string, method: string = 'GET', body?:
         );
       });
     }
-    if (dateParam) {
+    if (dateParam && dateParam !== 'ALL') {
       filtered = filtered.filter((v: any) => {
         if (v.status === VisitStatus.CHECKED_IN || v.status === VisitStatus.ARRIVED) return true;
-        const sched = (v.scheduledStartTime || v.scheduledAt || '').split('T')[0];
-        const created = (v.createdAt || '').split('T')[0];
-        const arrived = (v.arrivedAt || '').split('T')[0];
-        return sched === dateParam || created === dateParam || arrived === dateParam;
+        const schedUtc = (v.scheduledStartTime || v.scheduledAt || '').split('T')[0];
+        const createdUtc = (v.createdAt || '').split('T')[0];
+        const arrivedUtc = (v.arrivedAt || '').split('T')[0];
+
+        let schedLocal = '';
+        if (v.scheduledStartTime || v.scheduledAt) {
+          try {
+            schedLocal = new Date(v.scheduledStartTime || v.scheduledAt).toLocaleDateString('en-CA');
+          } catch {}
+        }
+        let createdLocal = '';
+        if (v.createdAt) {
+          try {
+            createdLocal = new Date(v.createdAt).toLocaleDateString('en-CA');
+          } catch {}
+        }
+
+        return (
+          schedUtc === dateParam ||
+          createdUtc === dateParam ||
+          arrivedUtc === dateParam ||
+          schedLocal === dateParam ||
+          createdLocal === dateParam
+        );
       });
     }
 

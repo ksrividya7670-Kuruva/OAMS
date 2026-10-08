@@ -398,7 +398,32 @@ export class AppointmentsService {
           needs: att.needs?.trim() || null,
           created_at: trx.fn.now(),
         }));
-        await trx('appointment_attendees').insert(attendeeRows);
+      }
+
+      // Create Visit entry for reception & security gate desk (§15)
+      if (valid.meetingMode !== MeetingMode.ONLINE && valid.meetingMode !== MeetingMode.PHONE) {
+        const primaryAtt = valid.attendees?.[0] || {
+          name: user.fullName || 'Requester',
+          email: user.email,
+        };
+        const refNo = await generateReferenceNumber(trx, 'VIS');
+        const qrToken = crypto.randomBytes(32).toString('hex');
+        const qrHash = crypto.createHash('sha256').update(qrToken).digest('hex');
+
+        await trx('visits').insert({
+          org_id: user.orgId,
+          appointment_id: appointmentId,
+          reference_no: refNo,
+          visitor_name: primaryAtt.name,
+          phone: primaryAtt.phone || null,
+          email: primaryAtt.email || null,
+          organization: primaryAtt.organization || null,
+          status: 'EXPECTED',
+          qr_token_hash: qrHash,
+          party_size: valid.attendees?.length || 1,
+          created_at: trx.fn.now(),
+          updated_at: trx.fn.now(),
+        });
       }
 
       // Record Status History transition: DRAFT -> UNDER_REVIEW (§10.2)

@@ -1,7 +1,7 @@
 import { type FC, useState, useEffect } from 'react';
 import type { VisitDto } from '@oams/shared';
 import { api } from '@/lib/api';
-import { X, CheckCircle2, ShieldCheck, AlertCircle } from 'lucide-react';
+import { X, CheckCircle2, ShieldCheck, AlertCircle, Phone, Mail, Users } from 'lucide-react';
 
 interface CheckInModalProps {
   visit: VisitDto | null;
@@ -104,19 +104,41 @@ export const CheckInModal: FC<CheckInModalProps> = ({ visit, isOpen, onClose, on
           )}
 
           {/* Visitor Card Summary */}
-          <div className="p-3 rounded-xl bg-[var(--bg-subtle)] border border-[var(--border-default)] flex items-center justify-between text-xs">
-            <div>
-              <div className="font-bold text-[var(--text-main)] text-sm">{visit.visitorName}</div>
-              <div className="text-[var(--text-muted)]">
-                {visit.organization ? `${visit.organization} • ` : ''}Ref: {visit.referenceNo}
+          <div className="p-3.5 rounded-xl bg-[var(--bg-subtle)] border border-[var(--border-default)] space-y-2 text-xs">
+            <div className="flex items-start justify-between">
+              <div>
+                <div className="font-bold text-[var(--text-main)] text-sm">{visit.visitorName}</div>
+                <div className="text-[var(--text-muted)] text-[11px]">
+                  {visit.organization ? `${visit.organization} • ` : ''}Ref: <span className="font-mono font-semibold">{visit.referenceNo}</span>
+                </div>
+              </div>
+              <div className="text-right">
+                <div className="font-semibold text-[var(--brand-primary)]">
+                  Host: {visit.hostOfficialName || 'Official'}
+                </div>
+                <div className="text-[var(--text-muted)] text-[11px]">{visit.roomName || 'Meeting Room'}</div>
               </div>
             </div>
-            <div className="text-right">
-              <div className="font-semibold text-[var(--brand-primary)]">
-                Host: {visit.hostOfficialName || 'Official'}
+
+            {(visit.phone || visit.email || ((visit as any).partySize && (visit as any).partySize > 1)) && (
+              <div className="flex flex-wrap items-center gap-3 pt-1.5 border-t border-[var(--border-default)] text-[11px] text-[var(--text-muted)]">
+                {visit.phone && (
+                  <span className="flex items-center gap-1 font-mono">
+                    <Phone className="w-3 h-3 text-blue-500" /> {visit.phone}
+                  </span>
+                )}
+                {visit.email && (
+                  <span className="flex items-center gap-1 truncate max-w-[200px]" title={visit.email}>
+                    <Mail className="w-3 h-3 text-blue-500" /> {visit.email}
+                  </span>
+                )}
+                {(visit as any).partySize && (visit as any).partySize > 1 && (
+                  <span className="flex items-center gap-1 font-semibold text-indigo-600 dark:text-indigo-400">
+                    <Users className="w-3 h-3" /> {(visit as any).partySize} Delegates
+                  </span>
+                )}
               </div>
-              <div className="text-[var(--text-muted)]">{visit.roomName || 'Meeting Room'}</div>
-            </div>
+            )}
           </div>
 
           {/* Badge Number (Prominent Input) */}

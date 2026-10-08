@@ -74,7 +74,7 @@ describe('Deployment Readiness Suite', () => {
       expect(screen.getByRole('button', { name: /^Register$/i })).toBeDefined();
 
       // Verify default credentials prefilled
-      const emailInput = screen.getByLabelText(/Email Address or Username/i) as HTMLInputElement;
+      const emailInput = screen.getByLabelText(/Official Email/i) as HTMLInputElement;
       expect(emailInput).toBeDefined();
       expect(emailInput.value).toBe('kvk@stmarysgroup.com');
 
@@ -105,11 +105,11 @@ describe('Deployment Readiness Suite', () => {
       // Verify headline updates to Create OAMS Account
       expect(screen.getByText(/Create OAMS Account/i)).toBeDefined();
 
-      // Verify role assignment dropdown is shown
-      expect(screen.getByLabelText(/Institutional Role Assignment/i)).toBeDefined();
+      // Verify classification tier dropdown is shown
+      expect(screen.getByLabelText(/Classification Tier/i)).toBeDefined();
 
-      // Verify submit button changes to Create Account & Login
-      expect(screen.getByRole('button', { name: /Create Account & Login/i })).toBeDefined();
+      // Verify submit button changes to Create Account & Sign In
+      expect(screen.getByRole('button', { name: /Create Account & Sign In/i })).toBeDefined();
     });
   });
 

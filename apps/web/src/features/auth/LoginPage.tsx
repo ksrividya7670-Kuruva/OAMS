@@ -689,12 +689,12 @@ export const LoginPage: FC<LoginPageProps> = ({ initialMode = 'signin' }) => {
                       }}
                       className="w-full pl-9 pr-8 py-2 text-xs rounded-xl border border-[#D5D2CA] dark:border-[#383E50] bg-white dark:bg-[#202530] text-[#16181D] dark:text-slate-200 focus:outline-none focus:ring-1.5 focus:ring-[#1A3170] shadow-2xs cursor-pointer font-medium"
                     >
-                      <option value="kvk@stmarysgroup.com">kvk@stmarysgroup.com — Mr. KVK (Official)</option>
-                      <option value="harsha@stmarysgroup.com">harsha@stmarysgroup.com — Mr. Harsha Rao (CEO)</option>
-                      <option value="vc@stmarysgroup.com">vc@stmarysgroup.com — Prof. Vice Chancellor (VC)</option>
-                      <option value="bharathi@stmarysgroup.com">bharathi@stmarysgroup.com — Ms. Bharathi (President)</option>
-                      <option value="indhu@stmarysgroup.com">indhu@stmarysgroup.com — Ms. Indhu (Joint Secretary)</option>
-                      <option value="janardhan@stmarysgroup.com">janardhan@stmarysgroup.com — Mr. Janardhan (Vice Principal / Admin)</option>
+                      <option value="kvk@stmarysgroup.com">kvk@stmarysgroup.com — Official</option>
+                      <option value="harsha@stmarysgroup.com">harsha@stmarysgroup.com — CEO</option>
+                      <option value="vc@stmarysgroup.com">vc@stmarysgroup.com — Vice Chancellor (VC)</option>
+                      <option value="bharathi@stmarysgroup.com">bharathi@stmarysgroup.com — President</option>
+                      <option value="indhu@stmarysgroup.com">indhu@stmarysgroup.com — Joint Secretary</option>
+                      <option value="janardhan@stmarysgroup.com">janardhan@stmarysgroup.com — Vice Principal / Admin</option>
                     </select>
                   </div>
                 ) : (
