@@ -1,10 +1,9 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { TaskDetailDrawer } from '../src/features/todo/TaskDetailDrawer';
 import { AuthProvider } from '../src/features/auth/AuthContext';
-import { TaskStatus, Priority, TaskCategory, RoleCode } from '@oams/shared';
+import { TaskStatus, Priority, TaskCategory } from '@oams/shared';
 import * as apiModule from '../src/lib/api';
 
 const createTestQueryClient = () =>

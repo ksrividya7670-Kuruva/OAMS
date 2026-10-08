@@ -34,20 +34,19 @@ export const LoginPage: FC<LoginPageProps> = ({ initialMode = 'signin' }) => {
   const [email, setEmail] = useState('kvk@stmarysgroup.com');
   const [password, setPassword] = useState('password123');
   const [showPassword, setShowPassword] = useState(false);
-  const [isCustomEmail, setIsCustomEmail] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
-  // Sign Up Input states
-  const [signupFullName, setSignupFullName] = useState('Priya Sharma');
-  const [signupEmail, setSignupEmail] = useState('priya@example.com');
-  const [signupPhone, setSignupPhone] = useState('+91 98765 43210');
-  const [signupOrg, setSignupOrg] = useState('Department of Biotechnology');
+  // Sign Up Input states (placeholders used instead of prebuilt values)
+  const [signupFullName, setSignupFullName] = useState('');
+  const [signupEmail, setSignupEmail] = useState('');
+  const [signupPhone, setSignupPhone] = useState('');
+  const [signupOrg, setSignupOrg] = useState('');
   const [signupCategory, setSignupCategory] = useState<'CITIZEN' | 'STUDENT' | 'FACULTY' | 'DELEGATION'>('CITIZEN');
-  const [signupPassword, setSignupPassword] = useState('password123');
-  const [signupConfirmPassword, setSignupConfirmPassword] = useState('password123');
-  const [signupConsent, setSignupConsent] = useState(true);
+  const [signupPassword, setSignupPassword] = useState('');
+  const [signupConfirmPassword, setSignupConfirmPassword] = useState('');
+  const [signupConsent, setSignupConsent] = useState(false);
 
   // Lockout & Attempt Tracking State
   const [lockoutState, setLockoutState] = useState<{
@@ -659,58 +658,59 @@ export const LoginPage: FC<LoginPageProps> = ({ initialMode = 'signin' }) => {
             </>
           ) : (
             <>
+              {/* Quick Select Account Dropdown (Above Email) */}
               <div>
-                <div className="flex items-center justify-between mb-1">
-                  <label
-                    htmlFor="email-select"
-                    className="block text-[11px] font-semibold text-[#16181D] dark:text-slate-200"
+                <label
+                  htmlFor="account-preset"
+                  className="block text-[11px] font-semibold text-[#16181D] dark:text-slate-200 mb-1"
+                >
+                  Quick Select Account
+                </label>
+                <div className="relative">
+                  <UserCheck className="w-3.5 h-3.5 text-[#5B6070] dark:text-slate-400 absolute left-3 top-3 pointer-events-none" />
+                  <select
+                    id="account-preset"
+                    value={email}
+                    onChange={(e) => {
+                      setEmail(e.target.value);
+                      setPassword('password123');
+                      if (error) setError(null);
+                    }}
+                    className="w-full pl-9 pr-8 py-2 text-xs rounded-xl border border-[#D5D2CA] dark:border-[#383E50] bg-[#F7F6F2] dark:bg-[#202530] text-[#16181D] dark:text-slate-200 focus:outline-none focus:ring-1.5 focus:ring-[#1A3170] shadow-2xs cursor-pointer font-medium"
                   >
-                    Official Email / Account
-                  </label>
-                  <button
-                    type="button"
-                    onClick={() => setIsCustomEmail(!isCustomEmail)}
-                    className="text-[10px] text-[#2957D6] hover:underline cursor-pointer font-medium"
-                  >
-                    {isCustomEmail ? 'Choose Official Email' : 'Custom Email'}
-                  </button>
+                    <option value="admin@stmarysgroup.com">admin@stmarysgroup.com — System Administrator</option>
+                    <option value="kvk@stmarysgroup.com">kvk@stmarysgroup.com — Chairman & Official</option>
+                    <option value="harsha@stmarysgroup.com">harsha@stmarysgroup.com — Chief Executive Officer (CEO)</option>
+                    <option value="vc@stmarysgroup.com">vc@stmarysgroup.com — Vice Chancellor (VC)</option>
+                    <option value="bharathi@stmarysgroup.com">bharathi@stmarysgroup.com — President</option>
+                    <option value="indhu@stmarysgroup.com">indhu@stmarysgroup.com — Joint Secretary & Staff</option>
+                    <option value="janardhan@stmarysgroup.com">janardhan@stmarysgroup.com — Vice Principal / Admin</option>
+                    <option value="security@stmarysgroup.com">security@stmarysgroup.com — Security Gate 1</option>
+                    <option value="reception@stmarysgroup.com">reception@stmarysgroup.com — Front Desk Reception</option>
+                  </select>
                 </div>
+              </div>
 
-                {!isCustomEmail ? (
-                  <div className="relative">
-                    <Mail className="w-3.5 h-3.5 text-[#5B6070] dark:text-slate-400 absolute left-3 top-3 pointer-events-none" />
-                    <select
-                      id="email-select"
-                      value={email}
-                      onChange={(e) => {
-                        setEmail(e.target.value);
-                        setPassword('password123');
-                        if (error) setError(null);
-                      }}
-                      className="w-full pl-9 pr-8 py-2 text-xs rounded-xl border border-[#D5D2CA] dark:border-[#383E50] bg-white dark:bg-[#202530] text-[#16181D] dark:text-slate-200 focus:outline-none focus:ring-1.5 focus:ring-[#1A3170] shadow-2xs cursor-pointer font-medium"
-                    >
-                      <option value="kvk@stmarysgroup.com">kvk@stmarysgroup.com — Official</option>
-                      <option value="harsha@stmarysgroup.com">harsha@stmarysgroup.com — CEO</option>
-                      <option value="vc@stmarysgroup.com">vc@stmarysgroup.com — Vice Chancellor (VC)</option>
-                      <option value="bharathi@stmarysgroup.com">bharathi@stmarysgroup.com — President</option>
-                      <option value="indhu@stmarysgroup.com">indhu@stmarysgroup.com — Joint Secretary</option>
-                      <option value="janardhan@stmarysgroup.com">janardhan@stmarysgroup.com — Vice Principal / Admin</option>
-                    </select>
-                  </div>
-                ) : (
-                  <div className="relative">
-                    <Mail className="w-3.5 h-3.5 text-[#5B6070] dark:text-slate-400 absolute left-3 top-3" />
-                    <input
-                      id="email"
-                      type="text"
-                      required
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      placeholder="username@stmarysgroup.com"
-                      className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-[#D5D2CA] dark:border-[#383E50] bg-white dark:bg-[#202530] text-[#16181D] dark:text-slate-200 focus:outline-none focus:ring-1.5 focus:ring-[#1A3170] shadow-2xs"
-                    />
-                  </div>
-                )}
+              {/* Official Email Entry Field */}
+              <div>
+                <label
+                  htmlFor="email"
+                  className="block text-[11px] font-semibold text-[#16181D] dark:text-slate-200 mb-1"
+                >
+                  Official Email
+                </label>
+                <div className="relative">
+                  <Mail className="w-3.5 h-3.5 text-[#5B6070] dark:text-slate-400 absolute left-3 top-3 pointer-events-none" />
+                  <input
+                    id="email"
+                    type="email"
+                    required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="name@stmarysgroup.com"
+                    className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-[#D5D2CA] dark:border-[#383E50] bg-white dark:bg-[#202530] text-[#16181D] dark:text-slate-200 focus:outline-none focus:ring-1.5 focus:ring-[#1A3170] shadow-2xs"
+                  />
+                </div>
               </div>
 
               <div>
