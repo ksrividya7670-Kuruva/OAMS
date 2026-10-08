@@ -137,8 +137,9 @@ export const TaskDetailDrawer: FC<TaskDetailDrawerProps> = ({ taskId, onClose })
   if (!taskId) return null;
 
   const isOfficialUser = hasRole(RoleCode.OFFICIAL);
-  const checklistTotal = task?.checklistItems?.length || 0;
-  const checklistDone = task?.checklistItems?.filter((c) => c.done).length || 0;
+  const checklistItems = task?.checklistItems || (task as any)?.checklist || [];
+  const checklistTotal = checklistItems.length;
+  const checklistDone = checklistItems.filter((c: any) => c.done).length;
   const checklistPercent =
     checklistTotal > 0 ? Math.round((checklistDone / checklistTotal) * 100) : 0;
 
@@ -151,7 +152,7 @@ export const TaskDetailDrawer: FC<TaskDetailDrawerProps> = ({ taskId, onClose })
             <div className="px-6 py-4 border-b border-[var(--border-default)] flex items-center justify-between">
               <div className="flex items-center gap-2.5">
                 <span className="font-mono text-xs font-semibold px-2 py-0.5 rounded bg-[var(--bg-subtle)] text-[var(--text-muted)]">
-                  {task?.referenceNo || 'Loading...'}
+                  {task?.referenceNo || (task?.id ? `TSK-${String(task.id).toUpperCase().replace('TSK-', '')}` : 'TSK-2026-001')}
                 </span>
                 {task?.visibility === 'PERSONAL' && (
                   <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-purple-600 dark:text-purple-400 bg-purple-500/10 px-2 py-0.5 rounded">
@@ -201,9 +202,9 @@ export const TaskDetailDrawer: FC<TaskDetailDrawerProps> = ({ taskId, onClose })
                     </span>
                   </div>
 
-                  {task.blockedReason && (
+                  {(task.blockedReason || (task as any).blockReason) && (
                     <div className="mt-3 p-3 rounded-lg bg-rose-500/10 border border-rose-500/20 text-xs text-rose-700 dark:text-rose-400">
-                      <strong>Blocked reason:</strong> {task.blockedReason}
+                      <strong>Blocked reason:</strong> {task.blockedReason || (task as any).blockReason}
                     </div>
                   )}
 
@@ -290,7 +291,7 @@ export const TaskDetailDrawer: FC<TaskDetailDrawerProps> = ({ taskId, onClose })
 
                   {/* Items list */}
                   <div className="space-y-1.5">
-                    {task.checklistItems?.map((item) => (
+                    {checklistItems.map((item: any) => (
                       <div
                         key={item.id}
                         className="flex items-center justify-between gap-3 p-2 rounded-lg hover:bg-[var(--bg-subtle)] group text-xs"
@@ -440,7 +441,7 @@ export const TaskDetailDrawer: FC<TaskDetailDrawerProps> = ({ taskId, onClose })
                           </span>
                         </div>
                         <p className="text-xs text-[var(--text-main)] whitespace-pre-wrap">
-                          {comment.body}
+                          {comment.body || (comment as any).text || ''}
                         </p>
                       </div>
                     ))}

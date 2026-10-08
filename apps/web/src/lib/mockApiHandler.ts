@@ -16,7 +16,7 @@ import {
 } from './mockData';
 import { RoleCode, AppointmentStatus, Priority, TaskStatus, VisitStatus } from '@oams/shared';
 
-const CURRENT_MOCK_VERSION = 'v31_dynamic_reception_requester_sync';
+const CURRENT_MOCK_VERSION = 'v33_todo_checklist_comments_reference_fix';
 if (typeof window !== 'undefined') {
   try {
     if (localStorage.getItem('oams_mock_data_version') !== CURRENT_MOCK_VERSION) {
@@ -1565,9 +1565,82 @@ export function handleMockRequest<T>(url: string, method: string = 'GET', body?:
     // Format tasks so all required DTO properties exist
     const formatTask = (t: any) => {
       const off = INITIAL_OFFICIALS.find((o) => o.id === t.officialId);
+      const cleanId = String(t.id || '0001').toUpperCase().replace('TSK-', '').replace(/[^0-9A-Z]/g, '');
+      const refNum = t.referenceNo || `TSK-2026-${cleanId.padStart(4, '0')}`;
+
+      const defaultChecklist = [
+        {
+          id: `${t.id || 'tsk'}-chk-1`,
+          taskId: t.id,
+          text: 'Review agenda documentation and preliminary briefs',
+          done: true,
+          position: 0,
+          createdAt: new Date(Date.now() - 3600000).toISOString(),
+          updatedAt: new Date(Date.now() - 3600000).toISOString(),
+        },
+        {
+          id: `${t.id || 'tsk'}-chk-2`,
+          taskId: t.id,
+          text: 'Confirm chamber schedule allocation and briefing materials',
+          done: false,
+          position: 1,
+          createdAt: new Date(Date.now() - 1800000).toISOString(),
+          updatedAt: new Date(Date.now() - 1800000).toISOString(),
+        },
+      ];
+
+      const defaultComments = [
+        {
+          id: `${t.id || 'tsk'}-com-1`,
+          taskId: t.id,
+          authorId: 'usr-officer-1',
+          authorName: 'Ms. Indhu',
+          authorEmail: 'indhu@university.edu',
+          body: 'Preliminary brief prepared and updated for executive review.',
+          text: 'Preliminary brief prepared and updated for executive review.',
+          createdAt: new Date(Date.now() - 3600000).toISOString(),
+          updatedAt: new Date(Date.now() - 3600000).toISOString(),
+        },
+      ];
+
+      const rawChecklist = t.checklistItems || t.checklist || defaultChecklist;
+      const checklistItems = rawChecklist.map((ci: any, idx: number) => ({
+        id: ci.id || `chk-${idx + 1}`,
+        taskId: t.id,
+        text: ci.text || '',
+        done: !!ci.done,
+        position: typeof ci.position === 'number' ? ci.position : idx,
+        createdAt: ci.createdAt || new Date().toISOString(),
+        updatedAt: ci.updatedAt || new Date().toISOString(),
+      }));
+
+      const rawComments = t.comments || defaultComments;
+      const comments = rawComments.map((c: any, idx: number) => ({
+        id: c.id || `com-${idx + 1}`,
+        taskId: t.id,
+        authorId: c.authorId || 'usr-officer-1',
+        authorName: c.authorName || 'Ms. Indhu',
+        authorEmail: c.authorEmail || 'indhu@university.edu',
+        body: c.body || c.text || '',
+        text: c.body || c.text || '',
+        createdAt: c.createdAt || new Date().toISOString(),
+        updatedAt: c.updatedAt || new Date().toISOString(),
+      }));
+
+      const rawReminders = t.reminders || [];
+      const reminders = rawReminders.map((r: any, idx: number) => ({
+        id: r.id || `rem-${idx + 1}`,
+        taskId: t.id,
+        remindAt: r.remindAt || new Date().toISOString(),
+        channel: r.channel || 'IN_APP',
+        sentAt: r.sentAt || null,
+        createdAt: r.createdAt || new Date().toISOString(),
+      }));
+
       return {
         ...t,
         id: t.id,
+        referenceNo: refNum,
         title: t.title,
         description: t.description || '',
         status: t.status || TaskStatus.TODO,
@@ -1577,12 +1650,23 @@ export function handleMockRequest<T>(url: string, method: string = 'GET', body?:
         officialName: t.officialName || off?.fullName || off?.full_name || 'Official',
         assignedToId: t.assignedToId || null,
         assignedToName: t.assignedToName || 'Assigned Officer',
+        assigneeName: t.assigneeName || t.assignedToName || 'Assigned Officer',
         dueAt: t.dueAt || t.dueDate || new Date(Date.now() + 14 * 3600 * 1000).toISOString(),
         dueDate: t.dueAt || t.dueDate || new Date(Date.now() + 14 * 3600 * 1000).toISOString(),
         isPersonal: !!t.isPersonal,
+        visibility: t.isPersonal ? 'PERSONAL' : (t.visibility || 'ORG'),
+        blockedReason: t.blockedReason || t.blockReason || null,
+        blockReason: t.blockedReason || t.blockReason || null,
+        cancelReason: t.cancelReason || null,
         tags: t.tags || ['Action'],
         createdAt: t.createdAt || new Date().toISOString(),
         completedAt: t.completedAt || (t.status === TaskStatus.DONE ? new Date().toISOString() : null),
+        checklistItems,
+        checklist: checklistItems,
+        comments,
+        reminders,
+        isOverdue: t.dueAt ? new Date(t.dueAt) < new Date() && t.status !== TaskStatus.DONE && t.status !== TaskStatus.CANCELLED : false,
+        awaitingVerification: !!t.awaitingVerification,
       };
     };
 
@@ -1697,10 +1781,15 @@ export function handleMockRequest<T>(url: string, method: string = 'GET', body?:
       } as unknown as T;
     }
 
+    const getActionTaskId = (actionName: string) => {
+      const parts = cleanUrl.split('/');
+      const idx = parts.lastIndexOf(actionName);
+      return idx > 0 ? parts[idx - 1] : '';
+    };
+
     // Complete task action
     if (cleanUrl.endsWith('/complete') && method === 'POST') {
-      const parts = cleanUrl.split('/');
-      const taskId = parts[parts.length - 2];
+      const taskId = getActionTaskId('complete');
       const idx = tasks.findIndex((t) => t.id === taskId);
       if (idx >= 0) {
         tasks[idx].status = TaskStatus.DONE;
@@ -1713,8 +1802,7 @@ export function handleMockRequest<T>(url: string, method: string = 'GET', body?:
 
     // Start task action
     if (cleanUrl.endsWith('/start') && method === 'POST') {
-      const parts = cleanUrl.split('/');
-      const taskId = parts[parts.length - 2];
+      const taskId = getActionTaskId('start');
       const idx = tasks.findIndex((t) => t.id === taskId);
       if (idx >= 0) {
         tasks[idx].status = TaskStatus.IN_PROGRESS;
@@ -1726,8 +1814,7 @@ export function handleMockRequest<T>(url: string, method: string = 'GET', body?:
 
     // Reopen task action
     if (cleanUrl.endsWith('/reopen') && method === 'POST') {
-      const parts = cleanUrl.split('/');
-      const taskId = parts[parts.length - 2];
+      const taskId = getActionTaskId('reopen');
       const idx = tasks.findIndex((t) => t.id === taskId);
       if (idx >= 0) {
         tasks[idx].status = TaskStatus.TODO;
@@ -1740,12 +1827,13 @@ export function handleMockRequest<T>(url: string, method: string = 'GET', body?:
 
     // Block task action
     if (cleanUrl.endsWith('/block') && method === 'POST') {
-      const parts = cleanUrl.split('/');
-      const taskId = parts[parts.length - 2];
+      const taskId = getActionTaskId('block');
       const idx = tasks.findIndex((t) => t.id === taskId);
       if (idx >= 0) {
         tasks[idx].status = TaskStatus.BLOCKED;
-        tasks[idx].blockReason = body?.reason || 'Blocked pending dependencies';
+        const reason = body?.reason || 'Blocked pending dependencies';
+        tasks[idx].blockedReason = reason;
+        tasks[idx].blockReason = reason;
         setStorage('tasks', tasks);
         return formatTask(tasks[idx]) as unknown as T;
       }
@@ -1754,12 +1842,12 @@ export function handleMockRequest<T>(url: string, method: string = 'GET', body?:
 
     // Verify task action
     if (cleanUrl.endsWith('/verify') && method === 'POST') {
-      const parts = cleanUrl.split('/');
-      const taskId = parts[parts.length - 2];
+      const taskId = getActionTaskId('verify');
       const idx = tasks.findIndex((t) => t.id === taskId);
       if (idx >= 0) {
         tasks[idx].status = TaskStatus.DONE;
         tasks[idx].verified = true;
+        tasks[idx].awaitingVerification = false;
         tasks[idx].verifiedAt = new Date().toISOString();
         setStorage('tasks', tasks);
         return formatTask(tasks[idx]) as unknown as T;
@@ -1769,11 +1857,11 @@ export function handleMockRequest<T>(url: string, method: string = 'GET', body?:
 
     // Unblock task action
     if (cleanUrl.endsWith('/unblock') && method === 'POST') {
-      const parts = cleanUrl.split('/');
-      const taskId = parts[parts.length - 2];
+      const taskId = getActionTaskId('unblock');
       const idx = tasks.findIndex((t) => t.id === taskId);
       if (idx >= 0) {
         tasks[idx].status = TaskStatus.IN_PROGRESS;
+        delete tasks[idx].blockedReason;
         delete tasks[idx].blockReason;
         setStorage('tasks', tasks);
         return formatTask(tasks[idx]) as unknown as T;
@@ -1783,8 +1871,7 @@ export function handleMockRequest<T>(url: string, method: string = 'GET', body?:
 
     // Cancel task action
     if (cleanUrl.endsWith('/cancel') && method === 'POST') {
-      const parts = cleanUrl.split('/');
-      const taskId = parts[parts.length - 2];
+      const taskId = getActionTaskId('cancel');
       const idx = tasks.findIndex((t) => t.id === taskId);
       if (idx >= 0) {
         tasks[idx].status = TaskStatus.CANCELLED;
@@ -1796,31 +1883,125 @@ export function handleMockRequest<T>(url: string, method: string = 'GET', body?:
     }
 
     // Checklist action
-    if (cleanUrl.includes('/checklist') && (method === 'POST' || method === 'PATCH')) {
-      return {
-        id: `chk-${Date.now()}`,
-        text: body?.text || 'Review checklist item',
-        done: !!body?.done,
-      } as unknown as T;
+    if (cleanUrl.includes('/checklist')) {
+      const parts = cleanUrl.split('/');
+      const chkIdx = parts.indexOf('checklist');
+      const taskId = chkIdx > 0 ? parts[chkIdx - 1] : '';
+      const itemId = chkIdx < parts.length - 1 ? parts[chkIdx + 1] : '';
+      const tIdx = tasks.findIndex((t) => t.id === taskId);
+
+      if (tIdx >= 0) {
+        const currentTask = formatTask(tasks[tIdx]);
+        const items = [...currentTask.checklistItems];
+
+        if (method === 'POST') {
+          const newItem = {
+            id: `chk-${Date.now()}`,
+            taskId,
+            text: body?.text || 'New sub-task',
+            done: false,
+            position: items.length,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          };
+          items.push(newItem);
+          tasks[tIdx].checklistItems = items;
+          tasks[tIdx].checklist = items;
+          setStorage('tasks', tasks);
+          return newItem as unknown as T;
+        }
+
+        if (method === 'PATCH' && itemId) {
+          const itIdx = items.findIndex((it) => it.id === itemId);
+          if (itIdx >= 0) {
+            items[itIdx] = {
+              ...items[itIdx],
+              ...(body || {}),
+              updatedAt: new Date().toISOString(),
+            };
+            tasks[tIdx].checklistItems = items;
+            tasks[tIdx].checklist = items;
+            setStorage('tasks', tasks);
+            return items[itIdx] as unknown as T;
+          }
+        }
+
+        if (method === 'DELETE' && itemId) {
+          const filteredItems = items.filter((it) => it.id !== itemId);
+          tasks[tIdx].checklistItems = filteredItems;
+          tasks[tIdx].checklist = filteredItems;
+          setStorage('tasks', tasks);
+          return { success: true } as unknown as T;
+        }
+      }
+      return { success: true } as unknown as T;
     }
 
     // Comments action
     if (cleanUrl.includes('/comments') && method === 'POST') {
-      return {
+      const parts = cleanUrl.split('/');
+      const comIdx = parts.indexOf('comments');
+      const taskId = comIdx > 0 ? parts[comIdx - 1] : '';
+      const tIdx = tasks.findIndex((t) => t.id === taskId);
+      const author = currentPersona?.fullName || 'Ms. Indhu';
+
+      const newComment = {
         id: `com-${Date.now()}`,
-        authorName: 'Ms. Indhu',
-        text: body?.body || '',
+        taskId,
+        authorId: currentPersona?.id || 'usr-officer-1',
+        authorName: author,
+        authorEmail: currentPersona?.email || 'indhu@university.edu',
+        body: body?.body || body?.text || '',
+        text: body?.body || body?.text || '',
         createdAt: new Date().toISOString(),
-      } as unknown as T;
+        updatedAt: new Date().toISOString(),
+      };
+
+      if (tIdx >= 0) {
+        const currentTask = formatTask(tasks[tIdx]);
+        const coms = [...currentTask.comments];
+        coms.push(newComment);
+        tasks[tIdx].comments = coms;
+        setStorage('tasks', tasks);
+      }
+      return newComment as unknown as T;
     }
 
     // Reminders action
-    if (cleanUrl.includes('/reminders') && method === 'POST') {
-      return {
-        id: `rem-${Date.now()}`,
-        remindAt: body?.remindAt || new Date().toISOString(),
-        createdAt: new Date().toISOString(),
-      } as unknown as T;
+    if (cleanUrl.includes('/reminders')) {
+      const parts = cleanUrl.split('/');
+      const remIdx = parts.indexOf('reminders');
+      const taskId = remIdx > 0 ? parts[remIdx - 1] : '';
+      const reminderId = remIdx < parts.length - 1 ? parts[remIdx + 1] : '';
+      const tIdx = tasks.findIndex((t) => t.id === taskId);
+
+      if (tIdx >= 0) {
+        const currentTask = formatTask(tasks[tIdx]);
+        const rems = [...currentTask.reminders];
+
+        if (method === 'POST') {
+          const newReminder = {
+            id: `rem-${Date.now()}`,
+            taskId,
+            remindAt: body?.remindAt || new Date().toISOString(),
+            channel: 'IN_APP',
+            sentAt: null,
+            createdAt: new Date().toISOString(),
+          };
+          rems.push(newReminder);
+          tasks[tIdx].reminders = rems;
+          setStorage('tasks', tasks);
+          return newReminder as unknown as T;
+        }
+
+        if (method === 'DELETE' && reminderId) {
+          const filteredRems = rems.filter((r) => r.id !== reminderId);
+          tasks[tIdx].reminders = filteredRems;
+          setStorage('tasks', tasks);
+          return { success: true } as unknown as T;
+        }
+      }
+      return { success: true } as unknown as T;
     }
 
     // Reorder action
@@ -1868,7 +2049,7 @@ export function handleMockRequest<T>(url: string, method: string = 'GET', body?:
     }
 
     // Delete task
-    if (method === 'DELETE') {
+    if (method === 'DELETE' && !cleanUrl.includes('/checklist') && !cleanUrl.includes('/reminders')) {
       const parts = cleanUrl.split('/');
       const taskId = parts[parts.length - 1];
       const filtered = tasks.filter((t) => t.id !== taskId);
@@ -1888,23 +2069,7 @@ export function handleMockRequest<T>(url: string, method: string = 'GET', body?:
     ) {
       const single = tasks.find((t) => t.id === lastSeg);
       if (single) {
-        const f = formatTask(single);
-        return {
-          ...f,
-          checklist: f.checklist || [
-            { id: 'chk-1', text: 'Review agenda documentation', done: true },
-            { id: 'chk-2', text: 'Confirm room allocation and AV check', done: false },
-          ],
-          comments: f.comments || [
-            {
-              id: 'com-1',
-              authorName: 'Ms. Indhu',
-              text: 'Preliminary brief prepared for executive review.',
-              createdAt: new Date(Date.now() - 3600000).toISOString(),
-            },
-          ],
-          reminders: f.reminders || [],
-        } as unknown as T;
+        return formatTask(single) as unknown as T;
       }
     }
 
