@@ -295,7 +295,7 @@ export const Layout: FC = () => {
     <div className="min-h-screen flex bg-[#F7F6F2] text-[#16181D]">
       {/* 220px Deep Navy Left Sidebar (§Layout & Structure from Design Template) */}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 w-[220px] bg-[#1A3170] flex flex-col justify-between p-[20px_14px] transition-transform duration-200 md:static md:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-50 w-[240px] max-w-[85vw] md:w-[220px] bg-[#1A3170] flex flex-col justify-between p-[20px_14px] transition-transform duration-200 md:static md:translate-x-0 ${
           mobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
         }`}
       >
@@ -408,12 +408,12 @@ export const Layout: FC = () => {
       {/* Main Application Container */}
       <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
         {/* Top 64px Header Bar matching design template */}
-        <header className="h-16 flex-shrink-0 flex items-center justify-between px-4 sm:px-7 bg-white border-b border-[#E4E2DC] z-30">
-          <div className="flex items-center gap-2.5 sm:gap-3.5">
+        <header className="h-16 flex-shrink-0 flex items-center justify-between px-3 sm:px-6 md:px-7 bg-white border-b border-[#E4E2DC] z-30">
+          <div className="flex items-center gap-2 sm:gap-3.5 min-w-0 flex-1 mr-2">
             <button
               type="button"
               onClick={() => setMobileMenuOpen(true)}
-              className="md:hidden p-2 rounded-lg border border-[#E4E2DC] text-[#16181D] hover:bg-[#F7F6F2] cursor-pointer"
+              className="md:hidden p-2 rounded-lg border border-[#E4E2DC] text-[#16181D] hover:bg-[#F7F6F2] cursor-pointer shrink-0"
               aria-label="Open sidebar"
             >
               <Menu className="w-5 h-5" />
@@ -427,23 +427,23 @@ export const Layout: FC = () => {
                   onClick={handleBack}
                   title="Go back to previous page"
                   aria-label="Go back to previous page"
-                  className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg border border-[#E4E2DC] bg-[#FAF9F5] hover:bg-[#F0EEE6] active:bg-[#EAE7DC] dark:bg-[var(--bg-subtle)] dark:border-[var(--border-default)] dark:hover:bg-[var(--bg-pill)] text-[#16181D] dark:text-[var(--text-main)] text-xs font-semibold transition-all cursor-pointer shadow-2xs group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2957D6]"
+                  className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg border border-[#E4E2DC] bg-[#FAF9F5] hover:bg-[#F0EEE6] active:bg-[#EAE7DC] dark:bg-[var(--bg-subtle)] dark:border-[var(--border-default)] dark:hover:bg-[var(--bg-pill)] text-[#16181D] dark:text-[var(--text-main)] text-xs font-semibold transition-all cursor-pointer shadow-2xs group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2957D6] shrink-0"
                 >
                   <ArrowLeft className="w-3.5 h-3.5 text-[#5B6070] dark:text-[var(--text-muted)] group-hover:text-[#16181D] dark:group-hover:text-[var(--text-main)] transition-transform group-hover:-translate-x-0.5" />
                   <span>Back</span>
                 </button>
 
-                <span className="h-4 w-[1px] bg-[#E4E2DC] dark:bg-[var(--border-default)] hidden sm:inline-block" aria-hidden="true" />
+                <span className="h-4 w-[1px] bg-[#E4E2DC] dark:bg-[var(--border-default)] hidden sm:inline-block shrink-0" aria-hidden="true" />
               </>
             )}
 
-            <h1 className="m-0 font-serif text-xl sm:text-2xl font-semibold text-[#16181D] dark:text-[var(--text-main)] tracking-tight">
+            <h1 className="m-0 font-serif text-base sm:text-xl md:text-2xl font-semibold text-[#16181D] dark:text-[var(--text-main)] tracking-tight truncate">
               {getPageTitle()}
             </h1>
           </div>
 
           {/* Right Header Controls: Persona Switcher + Quick Search + Notification Bell + User Pill */}
-          <div className="flex items-center gap-2 sm:gap-3.5">
+          <div className="flex items-center gap-1.5 sm:gap-3.5 shrink-0">
             {/* Quick Search */}
             <button
               type="button"
@@ -480,7 +480,7 @@ export const Layout: FC = () => {
           className={`flex-1 bg-[#F7F6F2] flex flex-col min-h-0 ${
             location.pathname === '/login'
               ? 'p-3 items-center justify-center overflow-hidden'
-              : 'p-4 sm:p-7 overflow-y-auto gap-5'
+              : 'p-3 sm:p-5 md:p-7 overflow-y-auto gap-4 sm:gap-5'
           }`}
         >
           <Outlet />

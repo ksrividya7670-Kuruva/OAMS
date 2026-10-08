@@ -185,8 +185,8 @@ export const AuditViewerPage: FC = () => {
       )}
 
       {/* Filters Toolbar */}
-      <div className="p-4 rounded-xl border border-[var(--border-default)] bg-[var(--bg-surface)] shadow-xs flex flex-wrap items-center gap-3">
-        <div className="flex items-center gap-2 text-xs font-semibold text-[var(--text-muted)]">
+      <div className="p-4 rounded-xl border border-[var(--border-default)] bg-[var(--bg-surface)] shadow-xs flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-3">
+        <div className="flex items-center gap-2 text-xs font-semibold text-[var(--text-muted)] shrink-0">
           <Filter className="w-3.5 h-3.5" /> Filter by:
         </div>
 
@@ -194,7 +194,7 @@ export const AuditViewerPage: FC = () => {
         <select
           value={entityType}
           onChange={(e) => setEntityType(e.target.value)}
-          className="bg-[var(--bg-subtle)] text-[var(--text-main)] border border-[var(--border-default)] px-3 py-1.5 rounded-lg text-xs outline-none"
+          className="bg-[var(--bg-subtle)] text-[var(--text-main)] border border-[var(--border-default)] px-3 py-1.5 rounded-lg text-xs outline-none w-full sm:w-auto"
         >
           <option value="">All Entity Types</option>
           <option value="official">Official</option>
@@ -208,7 +208,7 @@ export const AuditViewerPage: FC = () => {
         </select>
 
         {/* Action input */}
-        <div className="relative">
+        <div className="relative w-full sm:w-44">
           <input
             type="text"
             placeholder="Action (e.g. create, confirm)"
@@ -217,7 +217,7 @@ export const AuditViewerPage: FC = () => {
             onKeyDown={(e) => {
               if (e.key === 'Enter') fetchAuditEvents();
             }}
-            className="bg-[var(--bg-subtle)] text-[var(--text-main)] border border-[var(--border-default)] pl-3 pr-8 py-1.5 rounded-lg text-xs outline-none w-44"
+            className="w-full bg-[var(--bg-subtle)] text-[var(--text-main)] border border-[var(--border-default)] pl-3 pr-8 py-1.5 rounded-lg text-xs outline-none"
           />
           <Search className="w-3.5 h-3.5 text-[var(--text-muted)] absolute right-2.5 top-2.5" />
         </div>
@@ -231,15 +231,15 @@ export const AuditViewerPage: FC = () => {
           onKeyDown={(e) => {
             if (e.key === 'Enter') fetchAuditEvents();
           }}
-          className="bg-[var(--bg-subtle)] text-[var(--text-main)] border border-[var(--border-default)] px-3 py-1.5 rounded-lg text-xs outline-none w-36"
+          className="w-full sm:w-36 bg-[var(--bg-subtle)] text-[var(--text-main)] border border-[var(--border-default)] px-3 py-1.5 rounded-lg text-xs outline-none"
         />
 
-        <div className="ml-auto flex items-center gap-2">
+        <div className="w-full sm:w-auto sm:ml-auto flex items-center justify-end gap-2">
           {(entityType || action || actorId) && (
             <button
               type="button"
               onClick={handleClearFilters}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-[var(--border-default)] bg-[var(--bg-subtle)] hover:bg-[var(--bg-surface)] text-[var(--text-muted)] hover:text-[var(--text-main)] transition-colors cursor-pointer"
+              className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-[var(--border-default)] bg-[var(--bg-subtle)] hover:bg-[var(--bg-surface)] text-[var(--text-muted)] hover:text-[var(--text-main)] transition-colors cursor-pointer"
             >
               <X className="w-3.5 h-3.5" />
               Clear Filters
@@ -249,7 +249,7 @@ export const AuditViewerPage: FC = () => {
           <button
             type="button"
             onClick={() => fetchAuditEvents()}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-[var(--border-default)] bg-[var(--bg-surface)] hover:bg-[var(--bg-subtle)] text-[var(--text-main)] transition-colors cursor-pointer"
+            className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-[var(--border-default)] bg-[var(--bg-surface)] hover:bg-[var(--bg-subtle)] text-[var(--text-main)] transition-colors cursor-pointer"
           >
             <Search className="w-3.5 h-3.5" />
             Apply Filters

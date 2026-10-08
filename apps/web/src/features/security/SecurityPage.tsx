@@ -474,7 +474,8 @@ INCIDENT COMMAND INSTRUCTIONS:
           </div>
 
           <div className="rounded-xl border border-[#E4E2DC] dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden shadow-2xs">
-            <table className="w-full text-left text-xs">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs min-w-[620px]">
               <thead className="bg-[#FAF9F5] dark:bg-slate-800/60 border-b border-[#E4E2DC] dark:border-slate-800 font-semibold text-[#5B6070] dark:text-slate-400">
                 <tr>
                   <th className="py-3 px-4">Visitor</th>
@@ -548,6 +549,7 @@ INCIDENT COMMAND INSTRUCTIONS:
                 )}
               </tbody>
             </table>
+            </div>
           </div>
         </div>
       )}
@@ -697,7 +699,8 @@ INCIDENT COMMAND INSTRUCTIONS:
                       </span>
                     </div>
 
-                    <table className="w-full text-left text-xs">
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left text-xs min-w-[600px]">
                       <thead className="border-b border-[#E4E2DC] dark:border-slate-800 text-[#5B6070] dark:text-slate-400 bg-white dark:bg-slate-900 font-semibold">
                         <tr>
                           <th className="py-2.5 px-3">Badge #</th>
@@ -747,6 +750,7 @@ INCIDENT COMMAND INSTRUCTIONS:
                         ))}
                       </tbody>
                     </table>
+                    </div>
                   </div>
                 ))}
               </div>

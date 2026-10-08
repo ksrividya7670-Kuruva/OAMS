@@ -137,27 +137,27 @@ export const ReportsPage: FC = () => {
         </div>
 
         <div className="flex items-center flex-wrap gap-2.5">
-          <div className="flex items-center gap-1.5 bg-[var(--bg-surface)] border border-[var(--border-default)] px-3 py-1.5 rounded-lg text-xs">
-            <Calendar className="w-3.5 h-3.5 text-[var(--text-muted)]" />
+          <div className="flex items-center gap-1.5 bg-[var(--bg-surface)] border border-[var(--border-default)] px-3 py-1.5 rounded-lg text-xs w-full sm:w-auto justify-between sm:justify-start">
+            <Calendar className="w-3.5 h-3.5 text-[var(--text-muted)] shrink-0" />
             <input
               type="date"
               value={from}
               onChange={(e) => setFrom(e.target.value)}
-              className="bg-transparent text-[var(--text-main)] outline-none text-xs"
+              className="bg-transparent text-[var(--text-main)] outline-none text-xs w-[120px] sm:w-auto"
             />
             <span className="text-[var(--text-muted)]">to</span>
             <input
               type="date"
               value={to}
               onChange={(e) => setTo(e.target.value)}
-              className="bg-transparent text-[var(--text-main)] outline-none text-xs"
+              className="bg-transparent text-[var(--text-main)] outline-none text-xs w-[120px] sm:w-auto"
             />
           </div>
 
           <button
             type="button"
             onClick={loadReports}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-[var(--border-default)] bg-[var(--bg-surface)] hover:bg-[var(--bg-subtle)] text-[var(--text-main)] transition-colors cursor-pointer"
+            className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-[var(--border-default)] bg-[var(--bg-surface)] hover:bg-[var(--bg-subtle)] text-[var(--text-main)] transition-colors cursor-pointer"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
             Filter
@@ -166,7 +166,7 @@ export const ReportsPage: FC = () => {
           <button
             type="button"
             onClick={handleExportCsv}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-[var(--brand-primary)] text-white hover:bg-[var(--brand-hover)] transition-colors shadow-xs cursor-pointer"
+            className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-[var(--brand-primary)] text-white hover:bg-[var(--brand-hover)] transition-colors shadow-xs cursor-pointer"
           >
             <Download className="w-3.5 h-3.5" />
             Export CSV

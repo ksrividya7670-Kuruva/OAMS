@@ -950,7 +950,7 @@ export const CalendarPage: FC = () => {
       {/* Top Toolbar matching Spec */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 sm:gap-4">
         {/* Date Navigator & Heading */}
-        <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
+        <div className="flex items-center gap-2 sm:gap-2.5 shrink-0 flex-wrap sm:flex-nowrap">
           <button
             type="button"
             onClick={handlePrev}
@@ -1052,7 +1052,7 @@ export const CalendarPage: FC = () => {
       {/* Main Workspace Layout: Active View + Right Aside */}
       <div className="flex flex-col xl:flex-row gap-4 flex-grow min-h-0 items-start">
         {/* VIEW AREA */}
-        <section className="bg-white border border-[#E2E8F0] rounded-xl flex-grow flex flex-col overflow-hidden min-w-0 shadow-2xs w-full">
+        <section className="bg-white border border-[#E2E8F0] rounded-xl flex-grow flex flex-col overflow-x-auto min-w-0 shadow-2xs w-full">
           {/* ===================== 1. WEEK VIEW ===================== */}
           {viewMode === 'Week' && (
             <div className="flex flex-col flex-grow min-w-[700px] w-full overflow-hidden">
@@ -1374,7 +1374,7 @@ export const CalendarPage: FC = () => {
 
           {/* ===================== 3. MONTH VIEW ===================== */}
           {viewMode === 'Month' && (
-            <div className="flex flex-col p-4">
+            <div className="flex flex-col p-3 sm:p-4 min-w-[620px] sm:min-w-0">
               {/* Day Headers (Mon - Sun) */}
               <div className="grid grid-cols-7 border-b border-[#E4E2DC] pb-2 text-center text-xs font-semibold text-[#5B6070] uppercase tracking-wider">
                 {WEEKDAY_NAMES_SHORT.map((dw) => (

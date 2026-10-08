@@ -165,7 +165,7 @@ export const OfficialDashboard: FC<OfficialDashboardProps> = ({
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center flex-wrap gap-3">
           <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-[#E4E2DC] dark:border-[#2A2F3D] bg-[#F7F6F2] dark:bg-[#16181D] text-xs font-semibold text-[#16181D] dark:text-white">
             <Building2 className="w-3.5 h-3.5 text-[#1A3170] dark:text-blue-400" />
             <span>Docket: {total} Assigned</span>
