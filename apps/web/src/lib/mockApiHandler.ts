@@ -16,7 +16,7 @@ import {
 } from './mockData';
 import { RoleCode, AppointmentStatus, Priority, TaskStatus, VisitStatus } from '@oams/shared';
 
-const CURRENT_MOCK_VERSION = 'v34_comprehensive_audit_events_and_filters';
+const CURRENT_MOCK_VERSION = 'v35_october_current_week_anchored';
 if (typeof window !== 'undefined') {
   try {
     if (localStorage.getItem('oams_mock_data_version') !== CURRENT_MOCK_VERSION) {
@@ -37,6 +37,31 @@ if (typeof window !== 'undefined') {
       localStorage.setItem('oams_mock_data_version', CURRENT_MOCK_VERSION);
     }
   } catch {}
+}
+
+export function anchorDateToCurrentWeek(isoDateStr: string | null | undefined): string | null {
+  if (!isoDateStr) return null;
+  try {
+    const origDate = new Date(isoDateStr);
+    if (isNaN(origDate.getTime())) return isoDateStr;
+    const origDay = origDate.getUTCDay !== undefined ? origDate.getUTCDay() : origDate.getDay();
+
+    const now = new Date();
+    const nowDay = now.getDay();
+    const diffToMonday = nowDay === 0 ? -6 : 1 - nowDay;
+    const monday = new Date(now);
+    monday.setDate(now.getDate() + diffToMonday);
+
+    const dayOffset = origDay === 0 ? 6 : origDay - 1;
+    const targetDate = new Date(monday);
+    targetDate.setDate(monday.getDate() + dayOffset);
+
+    const targetDateStr = targetDate.toISOString().split('T')[0];
+    const timePart = origDate.toISOString().split('T')[1] || '10:00:00.000Z';
+    return `${targetDateStr}T${timePart}`;
+  } catch {
+    return isoDateStr;
+  }
 }
 
 // Initialize mock store in localStorage with memory fallback
@@ -1316,6 +1341,9 @@ export function handleMockRequest<T>(url: string, method: string = 'GET', body?:
               (uName && reqName.includes(uName))
             );
           });
+          if (myList.length === 0) {
+            myList = appointments.slice(0, 6);
+          }
         }
       }
       return myList.map((a) => formatDetail(a)) as unknown as T;
@@ -3131,8 +3159,11 @@ export function handleMockRequest<T>(url: string, method: string = 'GET', body?:
 
     // 1. Map all appointments dynamically
     appointments.forEach((apt: any) => {
-      const startIso = apt.scheduledStartTime || apt.startAt || (apt.preferredWindows?.[0]?.date && apt.preferredWindows?.[0]?.from ? `${apt.preferredWindows[0].date}T${apt.preferredWindows[0].from}:00.000Z` : null);
-      const endIso = apt.scheduledEndTime || apt.endAt || (apt.preferredWindows?.[0]?.date && apt.preferredWindows?.[0]?.to ? `${apt.preferredWindows[0].date}T${apt.preferredWindows[0].to}:00.000Z` : null);
+      const origStart = apt.scheduledStartTime || apt.startAt || (apt.preferredWindows?.[0]?.date && apt.preferredWindows?.[0]?.from ? `${apt.preferredWindows[0].date}T${apt.preferredWindows[0].from}:00.000Z` : null);
+      const origEnd = apt.scheduledEndTime || apt.endAt || (apt.preferredWindows?.[0]?.date && apt.preferredWindows?.[0]?.to ? `${apt.preferredWindows[0].date}T${apt.preferredWindows[0].to}:00.000Z` : null);
+
+      const startIso = anchorDateToCurrentWeek(origStart) || origStart;
+      const endIso = anchorDateToCurrentWeek(origEnd) || origEnd;
 
       if (!startIso) return;
       if (seenAptIds.has(apt.id)) return;
@@ -3176,14 +3207,136 @@ export function handleMockRequest<T>(url: string, method: string = 'GET', body?:
       if (cb.appointmentId && seenAptIds.has(cb.appointmentId)) return;
       if (cb.referenceNo && seenRefNos.has(cb.referenceNo)) return;
 
-      const slotKey = `${cb.officialId || ''}_${cb.startAt}_${(cb.title || cb.subject || '').trim().toLowerCase()}`;
+      const startIso = anchorDateToCurrentWeek(cb.startAt) || cb.startAt;
+      const endIso = anchorDateToCurrentWeek(cb.endAt) || cb.endAt;
+
+      const slotKey = `${cb.officialId || ''}_${startIso}_${(cb.title || cb.subject || '').trim().toLowerCase()}`;
       if (seenSlots.has(slotKey)) return;
 
       if (cb.appointmentId) seenAptIds.add(cb.appointmentId);
       if (cb.referenceNo) seenRefNos.add(cb.referenceNo);
       seenSlots.add(slotKey);
 
-      unifiedEvents.push(cb);
+      unifiedEvents.push({
+        ...cb,
+        startAt: startIso,
+        endAt: endIso,
+      });
+    });
+
+    // 3. Guaranteed Friday sessions for off-1 (Mr. KVK) so today (Friday) is richly populated
+    const fridayIso = (() => {
+      const now = new Date();
+      const currentDay = now.getDay();
+      const diffToMonday = currentDay === 0 ? -6 : 1 - currentDay;
+      const monday = new Date(now);
+      monday.setDate(now.getDate() + diffToMonday);
+      const fri = new Date(monday);
+      fri.setDate(monday.getDate() + 4);
+      return fri.toISOString().split('T')[0];
+    })();
+
+    const fridayEvents = [
+      {
+        id: 'cal-fri-101',
+        calendarId: 'cal-org-1',
+        calendarType: 'ORG',
+        officialId: 'off-1',
+        kind: 'APPOINTMENT',
+        blockStrength: 'HARD',
+        title: 'State Higher Education Accreditation Council Liaison',
+        subject: 'State Higher Education Accreditation Council Liaison',
+        description: 'High-level delegation meeting with State Education Secretary regarding NAAC criterion data verification.',
+        location: 'Chamber 101 (Executive Suite)',
+        roomName: 'Chamber 101 (Executive Suite)',
+        roomId: 'room-1',
+        startAt: `${fridayIso}T10:00:00.000Z`,
+        endAt: `${fridayIso}T11:00:00.000Z`,
+        allDay: false,
+        visibility: 'INTERNAL',
+        appointmentId: 'apt-106',
+        referenceNo: 'OAMS-2026-00182',
+        requesterName: 'Dr. Ramesh Chandra, IAS',
+        status: 'CONFIRMED',
+        isMasked: false,
+      },
+      {
+        id: 'cal-fri-102',
+        calendarId: 'cal-org-1',
+        calendarType: 'ORG',
+        officialId: 'off-1',
+        kind: 'APPOINTMENT',
+        blockStrength: 'HARD',
+        title: 'High-Level Review of Campus Extension Corridor 3',
+        subject: 'High-Level Review of Campus Extension Corridor 3',
+        description: 'Quarterly milestone review with contractors and institutional development delegates.',
+        location: 'Chamber 101 (Executive Suite)',
+        roomName: 'Chamber 101 (Executive Suite)',
+        roomId: 'room-1',
+        startAt: `${fridayIso}T11:30:00.000Z`,
+        endAt: `${fridayIso}T12:15:00.000Z`,
+        allDay: false,
+        visibility: 'INTERNAL',
+        appointmentId: 'apt-101',
+        referenceNo: 'OAMS-2026-00412',
+        requesterName: 'Sanjay Aggarwal (Metro Rail)',
+        status: 'CONFIRMED',
+        isMasked: false,
+      },
+      {
+        id: 'cal-fri-103',
+        calendarId: 'cal-org-1',
+        calendarType: 'ORG',
+        officialId: 'off-1',
+        kind: 'APPOINTMENT',
+        blockStrength: 'HARD',
+        title: 'ABC Corp — Industry Robotics MoU Signing',
+        subject: 'ABC Corp — Industry Robotics MoU Signing',
+        description: 'Strategic alliance discussion and signing of provisional MoU for student robotics center.',
+        location: 'Conference Room Alpha',
+        roomName: 'Conference Room Alpha',
+        roomId: 'room-2',
+        startAt: `${fridayIso}T14:30:00.000Z`,
+        endAt: `${fridayIso}T15:30:00.000Z`,
+        allDay: false,
+        visibility: 'INTERNAL',
+        appointmentId: 'apt-105',
+        referenceNo: 'OAMS-2026-00171',
+        requesterName: 'Vikram Malhotra',
+        status: 'CONFIRMED',
+        isMasked: false,
+      },
+      {
+        id: 'cal-fri-104',
+        calendarId: 'cal-org-1',
+        calendarType: 'ORG',
+        officialId: 'off-1',
+        kind: 'MEETING',
+        blockStrength: 'HARD',
+        title: 'Board of Trustees Quarterly Finance Review',
+        subject: 'Board of Trustees Quarterly Finance Review',
+        description: 'Finance controller alignment and capital expenditure review.',
+        location: 'Chamber 101 (Executive Suite)',
+        roomName: 'Chamber 101 (Executive Suite)',
+        roomId: 'room-1',
+        startAt: `${fridayIso}T16:00:00.000Z`,
+        endAt: `${fridayIso}T17:00:00.000Z`,
+        allDay: false,
+        visibility: 'INTERNAL',
+        appointmentId: null,
+        referenceNo: 'MTG-2026-0105',
+        requesterName: 'Board Secretariat',
+        status: 'CONFIRMED',
+        isMasked: false,
+      },
+    ];
+
+    fridayEvents.forEach((fe) => {
+      const slotKey = `${fe.officialId}_${fe.startAt}_${fe.subject.toLowerCase()}`;
+      if (!seenSlots.has(slotKey)) {
+        seenSlots.add(slotKey);
+        unifiedEvents.push(fe);
+      }
     });
 
     // Filter by query parameters

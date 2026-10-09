@@ -260,7 +260,7 @@ export const MyAppointmentsPage: React.FC = () => {
         </div>
 
         {/* Metric Overview Strip */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-6 pt-5 border-t border-[#EFEDE7] dark:border-[var(--border-subtle)]">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-5 pt-5 border-t border-[#EFEDE7] dark:border-[var(--border-subtle)]">
           <button
             type="button"
             onClick={() => setActiveTab('all')}

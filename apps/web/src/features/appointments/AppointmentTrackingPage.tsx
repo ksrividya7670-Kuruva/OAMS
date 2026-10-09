@@ -887,64 +887,103 @@ export const AppointmentTrackingPage: React.FC = () => {
         appointment.status === 'CLOSED') && (
         <div
           id="oams-digital-gate-pass"
-          className="bg-[var(--card-bg)] border-2 border-emerald-500/30 dark:border-emerald-500/20 rounded-2xl p-6 sm:p-7 shadow-md relative overflow-hidden space-y-6"
+          className="bg-white dark:bg-[#1E222B] border border-[#E4E2DC] dark:border-[#2A2F3D] rounded-3xl p-6 sm:p-8 shadow-sm space-y-6"
         >
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[var(--border-subtle)] pb-5">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-emerald-500/10 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
-                <ShieldCheck className="w-6 h-6" />
-              </div>
+          {/* SMRU Digital ID Header Card (Screen 7 Reference) */}
+          <div className="bg-gradient-to-br from-[#1A3170] to-[#2D4C9E] text-white rounded-3xl p-6 sm:p-7 shadow-md relative overflow-hidden space-y-5">
+            <div className="absolute right-0 top-0 translate-x-8 -translate-y-8 w-44 h-44 bg-white/5 rounded-full pointer-events-none" />
+
+            <div className="flex items-center justify-between border-b border-white/15 pb-4">
               <div>
-                <div className="flex items-center gap-2">
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded border border-emerald-200 dark:border-emerald-800">
-                    Official Protocol
-                  </span>
-                  <span className="text-xs font-mono font-bold text-[var(--text-muted)]">
-                    Pass #{appointment.referenceNo}
-                  </span>
+                <div className="text-[10px] tracking-widest uppercase font-mono font-bold text-blue-200">
+                  St. Mary's Rehabilitation University
                 </div>
-                <h2 className="text-lg font-bold text-[var(--text-main)] mt-0.5">
-                  Digital Visitor Gate Pass & Campus Clearance
-                </h2>
+                <h3 className="text-lg font-bold font-serif text-white tracking-wide">
+                  Digital ID &bull; One Card. All Access.
+                </h3>
               </div>
+              <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full bg-white/20 text-white border border-white/30 backdrop-blur-sm">
+                HOSTELLER / VISITOR
+              </span>
             </div>
 
-            <div className="flex items-center flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={handlePrintPass}
-                className="px-3.5 py-2 border border-[var(--border-subtle)] hover:bg-[var(--bg-main)] text-[var(--text-main)] text-xs font-semibold rounded-xl transition flex items-center gap-1.5 cursor-pointer shadow-2xs"
-                title="Print official gate pass slip"
-              >
-                <Printer className="w-3.5 h-3.5" />
-                <span>Print Pass</span>
-              </button>
-
-              {appointment.status === 'CONFIRMED' && (
-                <button
-                  type="button"
-                  disabled={actionInProgress}
-                  onClick={handleGateCheckIn}
-                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-xl transition flex items-center gap-1.5 cursor-pointer shadow-xs disabled:opacity-50"
-                  title="Simulate gate check-in at Security Point Alpha"
-                >
-                  <UserCheck className="w-3.5 h-3.5" />
-                  <span>Check-In at Gate 1</span>
-                </button>
-              )}
-
-              {appointment.status === 'CHECKED_IN' && (
-                <div className="px-3 py-1.5 bg-teal-50 dark:bg-teal-950/40 border border-teal-300 dark:border-teal-700 text-teal-800 dark:text-teal-300 text-xs font-bold rounded-xl flex items-center gap-1.5">
-                  <CheckCircle2 className="w-3.5 h-3.5" />
-                  <span>Gate Clearance Verified</span>
+            {/* Student & Card Profile Info */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="flex items-center gap-3.5">
+                <div className="w-14 h-14 rounded-2xl bg-white text-[#1A3170] font-bold text-xl flex items-center justify-center shadow-xs shrink-0">
+                  {(appointment.attendees?.[0]?.name || user?.fullName || 'AR')
+                    .substring(0, 2)
+                    .toUpperCase()}
                 </div>
-              )}
+                <div>
+                  <h4 className="text-lg font-bold text-white leading-tight">
+                    {appointment.attendees?.[0]?.name ||
+                      (appointment as any).requesterName ||
+                      user?.fullName ||
+                      'Ananya Reddy'}
+                  </h4>
+                  <div className="text-xs text-blue-100 mt-0.5">
+                    B.Tech CSE &bull; 2023–27 &bull; Room B-214
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2 mt-1.5 font-mono text-[11px] text-blue-200">
+                    <span className="px-2 py-0.5 rounded-md bg-white/10">
+                      PASS REF: {appointment.referenceNo || 'OAMS-2026-PASS'}
+                    </span>
+                    <span className="px-2 py-0.5 rounded-md bg-white/10">
+                      ACCESS: GATE 1 &bull; ZONE A
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="sm:text-right text-xs text-blue-100 space-y-0.5 border-t sm:border-t-0 border-white/10 pt-2 sm:pt-0">
+                <div className="text-white font-bold text-sm">Chamber Clearance &bull; Active</div>
+                <div className="text-[11px] text-blue-200">Electronic Visitor RFID Pass &bull; Biometric Verified</div>
+                <div className="text-[10px] text-emerald-300 font-semibold flex sm:justify-end items-center gap-1">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                  <span>Security Gate 1 Clearance Ready</span>
+                </div>
+              </div>
             </div>
           </div>
 
           {/* Pass Body: Left Details & Right QR Code */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
             <div className="md:col-span-2 space-y-4">
+              {/* OAMS Official Chamber Entry Clearance Status Banner */}
+              <div className="p-4 rounded-2xl pastel-card-emerald border space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <ShieldCheck className="w-4 h-4 text-emerald-700 dark:text-emerald-400" />
+                    <span className="text-xs font-bold text-emerald-950 dark:text-emerald-200">
+                      Chamber Entry Clearance &bull; Approved
+                    </span>
+                  </div>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-200 dark:bg-emerald-900 text-emerald-900 dark:text-emerald-100">
+                    Verified
+                  </span>
+                </div>
+                <div className="text-xs text-emerald-900 dark:text-emerald-200">
+                  <strong>Scheduled Hearing / Chamber Pass:</strong>{' '}
+                  {appointment.startAt
+                    ? new Date(appointment.startAt).toLocaleString([], {
+                        weekday: 'short',
+                        month: 'short',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })
+                    : 'Today, 10:00 AM – 10:50 AM'}
+                </div>
+                <div className="text-[11px] text-emerald-800 dark:text-emerald-300 flex flex-wrap items-center gap-x-3 gap-y-1 pt-1 border-t border-emerald-300/40 dark:border-emerald-800/40">
+                  <span>✓ Photo ID Verified</span>
+                  <span>&bull;</span>
+                  <span>✓ Executive Secretariat Approved</span>
+                  <span>&bull;</span>
+                  <span>Scan QR at Gate 1 for Entry</span>
+                </div>
+              </div>
+
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
                 <div className="p-3.5 bg-[var(--bg-main)] border border-[var(--border-subtle)] rounded-xl">
                   <span className="text-[10px] uppercase font-bold text-[var(--text-muted)] tracking-wider">
@@ -1040,21 +1079,46 @@ export const AppointmentTrackingPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Right QR Code box */}
-            <div className="flex flex-col items-center justify-center p-5 bg-[var(--bg-main)] border border-[var(--border-subtle)] rounded-xl text-center space-y-2.5">
-              <div className="flex items-center gap-1.5 text-xs font-bold text-[var(--text-main)]">
-                <QrCode className="w-4 h-4 text-[var(--brand-primary)]" />
-                <span>Entry Scan Matrix</span>
+            {/* Right QR Code box (SMRU Screen 7 Backup QR) */}
+            <div className="flex flex-col items-center justify-center p-5 bg-[#F7F6F2] dark:bg-[#16181F] border border-[#E4E2DC] dark:border-[#2A2F3D] rounded-3xl text-center space-y-2.5 shadow-xs">
+              <div className="flex items-center gap-1.5 text-xs font-bold text-[#16181D] dark:text-white">
+                <QrCode className="w-4 h-4 text-[#2957D6]" />
+                <span>Backup QR &bull; One Card</span>
+              </div>
+              <div className="text-[10px] text-[#5B6070] dark:text-[#8E95A5]">
+                Refreshes in <strong>0:24</strong> &bull; Reason needed at gate
               </div>
               <QrCodeSvg
                 value={`OAMS-PASS:${appointment.referenceNo}:${appointment.id}`}
                 size={144}
               />
-              <div className="font-mono text-[11px] text-[var(--text-muted)] tracking-widest font-semibold">
+              <div className="font-mono text-[11px] text-[#16181D] dark:text-white tracking-widest font-bold">
                 {appointment.referenceNo}
               </div>
-              <div className="text-[10px] text-emerald-700 dark:text-emerald-400 font-bold bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded border border-emerald-200 dark:border-emerald-800">
+              <div className="text-[10px] text-emerald-800 dark:text-emerald-300 font-bold bg-emerald-100 dark:bg-emerald-950/60 px-2.5 py-1 rounded-full border border-emerald-300 dark:border-emerald-700">
                 {appointment.status === 'CHECKED_IN' ? '✓ GATE CHECK-IN RECORDED' : 'SCAN AT GATE 1'}
+              </div>
+
+              <div className="flex items-center gap-2 mt-2 w-full pt-1">
+                <button
+                  type="button"
+                  onClick={handlePrintPass}
+                  className="flex-1 py-1.5 px-2 bg-white dark:bg-slate-800 hover:bg-slate-50 border border-slate-200 dark:border-slate-700 text-[11px] font-semibold text-slate-700 dark:text-slate-200 rounded-lg flex items-center justify-center gap-1 cursor-pointer transition shadow-2xs"
+                >
+                  <Printer className="w-3.5 h-3.5" />
+                  <span>Print Pass</span>
+                </button>
+                {appointment.status !== 'CHECKED_IN' && appointment.status !== 'COMPLETED' && (
+                  <button
+                    type="button"
+                    disabled={actionInProgress}
+                    onClick={handleGateCheckIn}
+                    className="flex-1 py-1.5 px-2 bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-semibold rounded-lg flex items-center justify-center gap-1 cursor-pointer transition shadow-2xs disabled:opacity-50"
+                  >
+                    <UserCheck className="w-3.5 h-3.5" />
+                    <span>{actionInProgress ? 'Checking in...' : 'Gate Check-In'}</span>
+                  </button>
+                )}
               </div>
             </div>
           </div>

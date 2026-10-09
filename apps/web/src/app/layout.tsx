@@ -442,8 +442,9 @@ export const Layout: FC = () => {
             </h1>
           </div>
 
-          {/* Right Header Controls: Persona Switcher + Quick Search + Notification Bell + User Pill */}
-          <div className="flex items-center gap-1.5 sm:gap-3.5 shrink-0">
+          {/* Right Header Controls: Quick Search + Notification Bell + User Pill */}
+          <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
+
             {/* Quick Search */}
             <button
               type="button"
@@ -471,7 +472,6 @@ export const Layout: FC = () => {
                 </span>
               </div>
             )}
-
           </div>
         </header>
 
@@ -480,11 +480,116 @@ export const Layout: FC = () => {
           className={`flex-1 bg-[#F7F6F2] flex flex-col min-h-0 ${
             location.pathname === '/login'
               ? 'p-3 items-center justify-center overflow-hidden'
-              : 'p-3 sm:p-5 md:p-7 overflow-y-auto gap-4 sm:gap-5'
+              : 'p-3 sm:p-5 md:p-7 pb-20 md:pb-7 overflow-y-auto gap-4 sm:gap-5'
           }`}
         >
           <Outlet />
         </main>
+
+        {/* Mobile Bottom Navigation Bar (SMRU Student ERP Reference) */}
+        <nav
+          aria-label="Mobile Navigation"
+          className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white/95 dark:bg-[#1E222B]/95 backdrop-blur-md border-t border-[#E4E2DC] dark:border-[#2A2F3D] px-2 py-1.5 flex items-center justify-around shadow-lg"
+        >
+          {user ? (
+            <>
+              <Link
+                to="/"
+                className={`flex flex-col items-center justify-center py-1 px-2.5 rounded-xl transition-all ${
+                  location.pathname === '/'
+                    ? 'text-[#2957D6] dark:text-blue-400 font-bold bg-blue-50/80 dark:bg-blue-950/40'
+                    : 'text-[#5B6070] dark:text-[#8E95A5] hover:text-[#16181D]'
+                }`}
+              >
+                <Home className="w-5 h-5" />
+                <span className="text-[10px] mt-0.5">Home</span>
+              </Link>
+
+              <Link
+                to="/app/today"
+                className={`flex flex-col items-center justify-center py-1 px-2.5 rounded-xl transition-all ${
+                  location.pathname.startsWith('/app/today')
+                    ? 'text-[#2957D6] dark:text-blue-400 font-bold bg-blue-50/80 dark:bg-blue-950/40'
+                    : 'text-[#5B6070] dark:text-[#8E95A5] hover:text-[#16181D]'
+                }`}
+              >
+                <Clock className="w-5 h-5" />
+                <span className="text-[10px] mt-0.5">Schedule</span>
+              </Link>
+
+              <Link
+                to="/my/appointments"
+                className={`flex flex-col items-center justify-center py-1 px-2.5 rounded-xl transition-all ${
+                  location.pathname.startsWith('/my/appointments') || location.pathname.startsWith('/track')
+                    ? 'text-[#2957D6] dark:text-blue-400 font-bold bg-blue-50/80 dark:bg-blue-950/40'
+                    : 'text-[#5B6070] dark:text-[#8E95A5] hover:text-[#16181D]'
+                }`}
+              >
+                <Calendar className="w-5 h-5" />
+                <span className="text-[10px] mt-0.5">Appointments</span>
+              </Link>
+
+              <Link
+                to="/app/todo"
+                className={`flex flex-col items-center justify-center py-1 px-2.5 rounded-xl transition-all ${
+                  location.pathname.startsWith('/app/todo')
+                    ? 'text-[#2957D6] dark:text-blue-400 font-bold bg-blue-50/80 dark:bg-blue-950/40'
+                    : 'text-[#5B6070] dark:text-[#8E95A5] hover:text-[#16181D]'
+                }`}
+              >
+                <CheckSquare className="w-5 h-5" />
+                <span className="text-[10px] mt-0.5">Tasks</span>
+              </Link>
+            </>
+          ) : (
+            <>
+              <Link
+                to="/"
+                className={`flex flex-col items-center justify-center py-1 px-3 rounded-xl transition-all ${
+                  location.pathname === '/'
+                    ? 'text-[#2957D6] font-bold bg-blue-50'
+                    : 'text-[#5B6070]'
+                }`}
+              >
+                <Home className="w-5 h-5" />
+                <span className="text-[10px] mt-0.5">Home</span>
+              </Link>
+              <Link
+                to="/request"
+                className={`flex flex-col items-center justify-center py-1 px-3 rounded-xl transition-all ${
+                  location.pathname === '/request'
+                    ? 'text-[#2957D6] font-bold bg-blue-50'
+                    : 'text-[#5B6070]'
+                }`}
+              >
+                <PlusCircle className="w-5 h-5" />
+                <span className="text-[10px] mt-0.5">Request</span>
+              </Link>
+              <Link
+                to="/track"
+                className={`flex flex-col items-center justify-center py-1 px-3 rounded-xl transition-all ${
+                  location.pathname.startsWith('/track')
+                    ? 'text-[#2957D6] font-bold bg-blue-50'
+                    : 'text-[#5B6070]'
+                }`}
+              >
+                <Clock className="w-5 h-5" />
+                <span className="text-[10px] mt-0.5">Track</span>
+              </Link>
+              <Link
+                to="/login"
+                className={`flex flex-col items-center justify-center py-1 px-3 rounded-xl transition-all ${
+                  location.pathname === '/login'
+                    ? 'text-[#2957D6] font-bold bg-blue-50'
+                    : 'text-[#5B6070]'
+                }`}
+              >
+                <LogIn className="w-5 h-5" />
+                <span className="text-[10px] mt-0.5">Sign In</span>
+              </Link>
+            </>
+          )}
+        </nav>
       </div>
 
       {/* Global Search Modal */}
@@ -492,3 +597,4 @@ export const Layout: FC = () => {
     </div>
   );
 };
+

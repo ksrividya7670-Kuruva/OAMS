@@ -1,11 +1,8 @@
 import { useState, useMemo, type FC } from 'react';
 import { Link } from 'react-router';
 import {
-  UserCheck,
   Clock,
-  Calendar,
   CheckCircle2,
-  XCircle,
   Copy,
   Check,
   Plus,
@@ -14,6 +11,7 @@ import {
   FileText,
   RefreshCw,
   FolderOpen,
+  Sparkles,
 } from 'lucide-react';
 import { AppointmentStatus, Priority } from '@oams/shared';
 import { DonutChart, BarChart, ProgressGauge } from '../charts/ChartComponents';
@@ -53,7 +51,6 @@ export const CitizenDashboard: FC<CitizenDashboardProps> = ({
     return filtered.length > 0 ? filtered : appointments.slice(0, 4);
   }, [appointments, user]);
 
-  const totalMyRequests = myAppointments.length;
   const inReview = myAppointments.filter(
     (a) =>
       a.status === AppointmentStatus.SUBMITTED ||
@@ -75,9 +72,6 @@ export const CitizenDashboard: FC<CitizenDashboardProps> = ({
       a.status === AppointmentStatus.EXPIRED
   ).length;
 
-  const totalDecided = completed + cancelled;
-  const successRate = totalDecided > 0 ? Math.round((completed / totalDecided) * 100) : 95;
-
   const handleCopyRef = (refNo: string) => {
     navigator.clipboard?.writeText(refNo);
     setCopiedRef(refNo);
@@ -94,134 +88,295 @@ export const CitizenDashboard: FC<CitizenDashboardProps> = ({
     { label: 'Declined', value: cancelled, color: '#C5CED9' },
   ];
 
-  const departmentData = [
-    { label: 'Chairman Office', value: Math.max(1, Math.round(totalMyRequests * 0.4)), highlight: true },
-    { label: 'Executive Dir.', value: Math.max(1, Math.round(totalMyRequests * 0.3)) },
-    { label: 'Vice Chancellor', value: Math.max(1, Math.round(totalMyRequests * 0.15)) },
-    { label: 'Secretariat', value: Math.max(1, Math.round(totalMyRequests * 0.15)) },
-  ];
+  // Extract initials
+  const userInitials = user?.fullName
+    ? user.fullName
+        .split(' ')
+        .map((n) => n[0])
+        .join('')
+        .substring(0, 2)
+        .toUpperCase()
+    : 'AR';
+
+  // Find next upcoming appointment
+  const nextAppointment = useMemo(() => {
+    const upcoming = myAppointments.find(
+      (a) =>
+        a.status === AppointmentStatus.CONFIRMED ||
+        a.status === AppointmentStatus.IN_PROGRESS ||
+        a.status === AppointmentStatus.CHECKED_IN,
+    );
+    return upcoming || myAppointments[0] || appointments[0];
+  }, [myAppointments, appointments]);
+
+  const successRate = useMemo(() => {
+    if (myAppointments.length === 0) return 92;
+    const resolved = confirmed + completed;
+    const eligible = resolved + cancelled;
+    return eligible > 0 ? Math.round((resolved / eligible) * 100) : 92;
+  }, [confirmed, completed, cancelled, myAppointments]);
+
+  const departmentData = useMemo(() => {
+    const counts: Record<string, number> = {};
+    myAppointments.forEach((a) => {
+      const dept = a.departmentName || a.officialDepartment || 'Secretariat';
+      counts[dept] = (counts[dept] || 0) + 1;
+    });
+    const entries = Object.entries(counts).map(([label, value]) => ({ label, value }));
+    return entries.length > 0
+      ? entries
+      : [
+          { label: 'Secretariat', value: 4 },
+          { label: 'Academic Council', value: 2 },
+          { label: 'Administration', value: 1 },
+        ];
+  }, [myAppointments]);
+
+  const [copilotQuery, setCopilotQuery] = useState('');
+
+  const handleCopilotSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!copilotQuery.trim()) return;
+    showToast(`Secretariat Search: Finding records for "${copilotQuery}"...`);
+    setCopilotQuery('');
+  };
 
   return (
-    <div className="space-y-6">
-      {/* Citizen Header */}
-      <div className="p-6 rounded-3xl border border-[#E4E2DC] dark:border-[#2A2F3D] bg-white dark:bg-[#1E222B] flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-2xs">
-        <div className="flex items-center gap-4">
-          <div className="w-12 h-12 rounded-2xl bg-[#1A3170] text-white flex items-center justify-center font-bold shadow-xs shrink-0">
-            <UserCheck className="w-6 h-6" />
-          </div>
-          <div>
-            <div className="flex flex-wrap items-center gap-2">
-              <h2 className="text-xl font-bold font-serif text-[#16181D] dark:text-white">
-                Citizen &amp; Requester Portal Dashboard
-              </h2>
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#1A3170]/10 text-[#1A3170] dark:bg-[#1A3170]/30 dark:text-blue-300 border border-[#1A3170]/20">
-                Official Tracking Hub
-              </span>
+    <div className="space-y-5 max-w-5xl mx-auto">
+      {/* 1. Mobile-First Greeting & Copilot Header (SMRU Screen 1) */}
+      <div className="bg-white dark:bg-[#1E222B] rounded-3xl p-5 sm:p-6 border border-[#E4E2DC] dark:border-[#2A2F3D] shadow-xs space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-11 h-11 rounded-2xl bg-[#6366F1]/10 dark:bg-[#6366F1]/20 border border-[#6366F1]/30 text-[#4F46E5] dark:text-[#818CF8] font-bold text-sm flex items-center justify-center shadow-xs shrink-0">
+              {userInitials}
             </div>
-            <p className="text-xs text-[#5B6070] dark:text-[#8E95A5] mt-0.5">
-              Track the progress of your appointment requests, review official slots, and access digital security passes.
-            </p>
+            <div>
+              <div className="text-xs text-[#5B6070] dark:text-[#8E95A5] font-medium flex items-center gap-1">
+                Good morning <span>👋</span>
+              </div>
+              <h2 className="text-lg sm:text-xl font-bold font-serif text-[#16181D] dark:text-white leading-tight">
+                {user?.fullName || 'Ananya Reddy'}
+              </h2>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={onRefresh}
+              className="p-2.5 rounded-xl border border-[#E4E2DC] dark:border-[#2A2F3D] bg-[#F7F6F2] dark:bg-[#16181D] text-[#5B6070] dark:text-[#8E95A5] hover:text-[#16181D] dark:hover:text-white transition cursor-pointer"
+              title="Refresh Dashboard"
+            >
+              <RefreshCw className="w-4 h-4" />
+            </button>
+            <Link
+              to="/request"
+              className="hidden sm:inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#2957D6] hover:bg-[#1E4FC2] text-white text-xs font-semibold shadow-xs transition"
+            >
+              <Plus className="w-4 h-4" />
+              <span>New Request</span>
+            </Link>
           </div>
         </div>
 
-        <div className="flex items-center flex-wrap gap-2.5">
-          <button
-            type="button"
-            onClick={onRefresh}
-            className="p-2.5 rounded-xl border border-[#E4E2DC] dark:border-[#2A2F3D] bg-white dark:bg-[#1E222B] text-[#5B6070] dark:text-[#8E95A5] hover:text-[#16181D] dark:hover:text-white transition cursor-pointer"
-            title="Refresh Applications"
-          >
-            <RefreshCw className="w-3.5 h-3.5" />
-          </button>
-
-          <Link
-            to="/request"
-            className="px-4 py-2 rounded-xl bg-[#1A3170] hover:bg-[#132554] text-white text-xs font-semibold transition flex items-center gap-1.5 shadow-2xs"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            <span>New Request</span>
-          </Link>
-
-          <Link
-            to="/my/appointments"
-            className="px-4 py-2 rounded-xl border border-[#E4E2DC] dark:border-[#2A2F3D] bg-[#F7F6F2] dark:bg-[#16181D] text-[#16181D] dark:text-white text-xs font-semibold hover:border-[#1A3170] transition flex items-center gap-1.5"
-          >
-            <FileText className="w-3.5 h-3.5 text-[#1A3170] dark:text-blue-400" />
-            <span>My Applications &rarr;</span>
-          </Link>
-        </div>
+        {/* CXO Secretariat Search Bar */}
+        <form onSubmit={handleCopilotSubmit} className="relative">
+          <div className="flex items-center rounded-2xl border border-[#E4E2DC] dark:border-[#2A2F3D] bg-[#F9F8F5] dark:bg-[#16181F] px-3.5 py-2.5 focus-within:border-[#2957D6] focus-within:ring-2 focus-within:ring-[#2957D6]/20 transition">
+            <Sparkles className="w-4 h-4 text-[#6366F1] dark:text-[#818CF8] shrink-0 mr-2" />
+            <input
+              type="text"
+              value={copilotQuery}
+              onChange={(e) => setCopilotQuery(e.target.value)}
+              placeholder="Search appointments by reference ID, host official, or chamber…"
+              className="w-full text-xs bg-transparent border-0 outline-none text-[#16181D] dark:text-white placeholder:text-[#8E95A5]"
+            />
+            <button
+              type="submit"
+              className="px-3 py-1 rounded-xl bg-[#2957D6] hover:bg-[#1E4FC2] text-white text-[11px] font-semibold transition shrink-0 ml-2"
+            >
+              Search
+            </button>
+          </div>
+        </form>
       </div>
 
-      {/* KPI Cards: Citizen - Monochromatic & Bespoke Ink Palette */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-        <div className="p-4 rounded-2xl border border-[#E4E2DC] dark:border-[#2A2F3D] bg-white dark:bg-[#1E222B] shadow-2xs">
-          <div className="flex items-center justify-between text-[11px] font-semibold text-[#5B6070] dark:text-[#8E95A5] uppercase tracking-wider">
-            <span>My Applications</span>
-            <FileText className="w-3.5 h-3.5 text-[#1A3170] dark:text-blue-400" />
+      {/* 2. 4-Card Pastel Summary Grid (SMRU Screen 1) */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        {/* Card 1: Total Appointments (Pastel Blue) */}
+        <Link
+          to="/my/appointments"
+          className="p-4 sm:p-5 rounded-3xl pastel-card-blue border transition-transform hover:-translate-y-0.5 shadow-xs block no-underline"
+        >
+          <div className="flex items-center justify-between text-xs font-semibold text-blue-900 dark:text-blue-200">
+            <span>Total Requests</span>
+            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-blue-200/60 dark:bg-blue-800/40 text-blue-800 dark:text-blue-300 font-bold">
+              All
+            </span>
           </div>
-          <div className="text-2xl font-bold font-serif text-[#16181D] dark:text-white mt-1.5">
-            {totalMyRequests}
+          <div className="text-2xl sm:text-3xl font-bold font-serif text-blue-950 dark:text-white mt-2">
+            {myAppointments.length}
           </div>
-          <span className="text-[10px] text-[#5B6070] dark:text-[#8E95A5] mt-0.5 block">Total submitted</span>
-        </div>
+          <div className="text-[11px] text-blue-700 dark:text-blue-300 mt-1 flex items-center gap-1">
+            <span className="inline-block w-2 h-2 rounded-full bg-blue-600"></span>
+            <span>All lodged petitions</span>
+          </div>
+        </Link>
 
-        <div className="p-4 rounded-2xl border border-[#E4E2DC] dark:border-[#2A2F3D] bg-white dark:bg-[#1E222B] shadow-2xs">
-          <div className="flex items-center justify-between text-[11px] font-semibold text-[#5B6070] dark:text-[#8E95A5] uppercase tracking-wider">
-            <span>In Review</span>
-            <Clock className="w-3.5 h-3.5 text-[#5B78A5] dark:text-slate-400" />
-          </div>
-          <div className="text-2xl font-bold font-serif text-[#16181D] dark:text-white mt-1.5">
-            {inReview}
-          </div>
-          <span className="text-[10px] text-[#5B6070] dark:text-[#8E95A5] mt-0.5 block">Secretariat triage</span>
-        </div>
-
-        <div className="p-4 rounded-2xl border border-[#E4E2DC] dark:border-[#2A2F3D] bg-white dark:bg-[#1E222B] shadow-2xs">
-          <div className="flex items-center justify-between text-[11px] font-semibold text-[#5B6070] dark:text-[#8E95A5] uppercase tracking-wider">
+        {/* Card 2: Confirmed Meetings (Pastel Purple) */}
+        <Link
+          to="/my/appointments"
+          className="p-4 sm:p-5 rounded-3xl pastel-card-purple border transition-transform hover:-translate-y-0.5 shadow-xs block no-underline"
+        >
+          <div className="flex items-center justify-between text-xs font-semibold text-purple-900 dark:text-purple-200">
             <span>Confirmed</span>
-            <Calendar className="w-3.5 h-3.5 text-[#2E5AAC] dark:text-blue-400" />
+            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-purple-200/60 dark:bg-purple-800/40 text-purple-800 dark:text-purple-300 font-bold">
+              Ready
+            </span>
           </div>
-          <div className="text-2xl font-bold font-serif text-[#16181D] dark:text-white mt-1.5">
+          <div className="text-2xl sm:text-3xl font-bold font-serif text-purple-950 dark:text-white mt-2">
             {confirmed}
           </div>
-          <span className="text-[10px] text-[#5B6070] dark:text-[#8E95A5] mt-0.5 block">Slots granted</span>
-        </div>
+          <div className="text-[11px] text-purple-700 dark:text-purple-300 mt-1 flex items-center gap-1">
+            <span className="inline-block w-2 h-2 rounded-full bg-emerald-500"></span>
+            <span>Gate passes active</span>
+          </div>
+        </Link>
 
-        <div className="p-4 rounded-2xl border border-[#E4E2DC] dark:border-[#2A2F3D] bg-white dark:bg-[#1E222B] shadow-2xs">
-          <div className="flex items-center justify-between text-[11px] font-semibold text-[#5B6070] dark:text-[#8E95A5] uppercase tracking-wider">
-            <span>In Progress</span>
-            <QrCode className="w-3.5 h-3.5 text-[#1A3170] dark:text-blue-400" />
+        {/* Card 3: In Review (Pastel Amber) */}
+        <Link
+          to="/my/appointments"
+          className="p-4 sm:p-5 rounded-3xl pastel-card-amber border transition-transform hover:-translate-y-0.5 shadow-xs block no-underline"
+        >
+          <div className="flex items-center justify-between text-xs font-semibold text-amber-900 dark:text-amber-200">
+            <span>In Triage</span>
+            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-200/60 dark:bg-amber-800/40 text-amber-800 dark:text-amber-300 font-bold">
+              Review
+            </span>
           </div>
-          <div className="text-2xl font-bold font-serif text-[#16181D] dark:text-white mt-1.5">
-            {inProgress}
+          <div className="text-2xl sm:text-3xl font-bold font-serif text-amber-950 dark:text-white mt-2">
+            {inReview}
           </div>
-          <span className="text-[10px] text-[#5B6070] dark:text-[#8E95A5] mt-0.5 block">Active meeting</span>
-        </div>
+          <div className="text-[11px] text-amber-700 dark:text-amber-300 mt-1 flex items-center gap-1">
+            <span className="inline-block w-2 h-2 rounded-full bg-amber-500"></span>
+            <span>Secretariat SLA: 24h</span>
+          </div>
+        </Link>
 
-        <div className="p-4 rounded-2xl border border-[#E4E2DC] dark:border-[#2A2F3D] bg-white dark:bg-[#1E222B] shadow-2xs">
-          <div className="flex items-center justify-between text-[11px] font-semibold text-[#5B6070] dark:text-[#8E95A5] uppercase tracking-wider">
-            <span>Completed</span>
-            <CheckCircle2 className="w-3.5 h-3.5 text-[#8FA3BC] dark:text-slate-400" />
+        {/* Card 4: Concluded (Pastel Coral) */}
+        <Link
+          to="/my/appointments"
+          className="p-4 sm:p-5 rounded-3xl pastel-card-coral border transition-transform hover:-translate-y-0.5 shadow-xs block no-underline"
+        >
+          <div className="flex items-center justify-between text-xs font-semibold text-rose-900 dark:text-rose-200">
+            <span>Concluded</span>
+            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-rose-200/60 dark:bg-rose-800/40 text-rose-800 dark:text-rose-300 font-bold">
+              Archive
+            </span>
           </div>
-          <div className="text-2xl font-bold font-serif text-[#16181D] dark:text-white mt-1.5">
+          <div className="text-2xl sm:text-3xl font-bold font-serif text-rose-950 dark:text-white mt-2">
             {completed}
           </div>
-          <span className="text-[10px] text-[#5B6070] dark:text-[#8E95A5] mt-0.5 block">Concluded meetings</span>
-        </div>
-
-        <div className="p-4 rounded-2xl border border-[#E4E2DC] dark:border-[#2A2F3D] bg-white dark:bg-[#1E222B] shadow-2xs">
-          <div className="flex items-center justify-between text-[11px] font-semibold text-[#5B6070] dark:text-[#8E95A5] uppercase tracking-wider">
-            <span>Declined</span>
-            <XCircle className="w-3.5 h-3.5 text-[#C5CED9] dark:text-slate-500" />
+          <div className="text-[11px] text-rose-700 dark:text-rose-300 mt-1 flex items-center gap-1">
+            <CheckCircle2 className="w-3 h-3 text-rose-600" />
+            <span>Official records filed</span>
           </div>
-          <div className="text-2xl font-bold font-serif text-[#16181D] dark:text-white mt-1.5">
-            {cancelled}
-          </div>
-          <span className="text-[10px] text-[#5B6070] dark:text-[#8E95A5] mt-0.5 block">Declined / Void</span>
-        </div>
+        </Link>
       </div>
 
-      {/* Professional Charts Row: Citizen */}
+      {/* 3. Quick Actions Pill Bar */}
+      <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
+        <Link
+          to="/request"
+          className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-2xl bg-white dark:bg-[#1E222B] border border-[#E4E2DC] dark:border-[#2A2F3D] text-xs font-semibold text-[#16181D] dark:text-white shadow-2xs hover:border-[#2957D6] transition shrink-0"
+        >
+          <Plus className="w-3.5 h-3.5 text-[#2957D6]" />
+          <span>New Request</span>
+        </Link>
+        <Link
+          to="/my/appointments"
+          className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-2xl bg-white dark:bg-[#1E222B] border border-[#E4E2DC] dark:border-[#2A2F3D] text-xs font-semibold text-[#16181D] dark:text-white shadow-2xs hover:border-[#2957D6] transition shrink-0"
+        >
+          <FileText className="w-3.5 h-3.5 text-blue-500" />
+          <span>My Appointments</span>
+        </Link>
+        <Link
+          to="/app/today"
+          className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-2xl bg-white dark:bg-[#1E222B] border border-[#E4E2DC] dark:border-[#2A2F3D] text-xs font-semibold text-[#16181D] dark:text-white shadow-2xs hover:border-[#2957D6] transition shrink-0"
+        >
+          <Clock className="w-3.5 h-3.5 text-amber-500" />
+          <span>Today's Schedule</span>
+        </Link>
+        <Link
+          to="/app/todo"
+          className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-2xl bg-white dark:bg-[#1E222B] border border-[#E4E2DC] dark:border-[#2A2F3D] text-xs font-semibold text-[#16181D] dark:text-white shadow-2xs hover:border-[#2957D6] transition shrink-0"
+        >
+          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+          <span>Tasks &amp; To-Do</span>
+        </Link>
+        {nextAppointment && (
+          <Link
+            to={`/track?ref=${nextAppointment.referenceNo || nextAppointment.id}`}
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-2xl bg-[#6366F1]/10 border border-[#6366F1]/30 text-xs font-semibold text-[#4F46E5] dark:text-[#818CF8] shadow-2xs hover:bg-[#6366F1]/20 transition shrink-0"
+          >
+            <QrCode className="w-3.5 h-3.5" />
+            <span>Digital Gate Pass</span>
+          </Link>
+        )}
+      </div>
+
+      {/* 4. "Next Scheduled Meeting" Feature Card (SMRU Screen 1) */}
+      {nextAppointment && (
+        <div className="bg-gradient-to-r from-blue-900 to-[#1A3170] text-white rounded-3xl p-5 sm:p-6 shadow-md relative overflow-hidden">
+          <div className="absolute right-0 top-0 translate-x-8 -translate-y-8 w-40 h-40 bg-white/5 rounded-full pointer-events-none" />
+          <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="space-y-1.5">
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-bold tracking-wider uppercase px-2.5 py-0.5 rounded-full bg-emerald-400 text-slate-950">
+                  {nextAppointment.status === AppointmentStatus.IN_PROGRESS
+                    ? 'In Progress Now'
+                    : 'Next Meeting • Access Ready'}
+                </span>
+                <span className="text-xs text-blue-200">
+                  {nextAppointment.scheduledDate || nextAppointment.date || 'Scheduled'}
+                </span>
+              </div>
+              <h3 className="text-lg sm:text-xl font-bold font-serif leading-snug">
+                {nextAppointment.subject || 'Executive Chamber Consultation'}
+              </h3>
+              <div className="text-xs text-blue-100 flex flex-wrap items-center gap-x-3 gap-y-1">
+                <span className="flex items-center gap-1">
+                  <Clock className="w-3.5 h-3.5 text-blue-300" />
+                  <span>
+                    {nextAppointment.preferredWindows?.[0]?.from
+                      ? `${nextAppointment.preferredWindows[0].from} – ${nextAppointment.preferredWindows[0].to}`
+                      : 'Confirmed Window'}
+                  </span>
+                </span>
+                <span>&bull;</span>
+                <span className="font-semibold text-white">
+                  Chamber of {nextAppointment.officialName || 'Executive Directorate'}
+                </span>
+                <span>&bull;</span>
+                <span className="text-emerald-300 font-medium font-mono">
+                  {nextAppointment.referenceNo || 'OAMS-2026'}
+                </span>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 sm:self-center shrink-0">
+              <Link
+                to={`/track?ref=${nextAppointment.referenceNo || nextAppointment.id}`}
+                className="px-4 py-2 rounded-xl bg-white text-[#1A3170] hover:bg-blue-50 text-xs font-bold transition flex items-center gap-1.5 shadow-sm"
+              >
+                <QrCode className="w-4 h-4" />
+                <span>Show Gate Pass</span>
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 5. Charts & Analytics Overview */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <DonutChart
           title="Application Status Breakdown"
@@ -239,12 +394,12 @@ export const CitizenDashboard: FC<CitizenDashboardProps> = ({
         />
 
         <ProgressGauge
-          title="Official Approval Rate"
+          title="Official Clearance Rate"
           subtitle="Ratio of accepted appointment requests"
           value={successRate}
-          metricLabel="Success Rate"
+          metricLabel="Clearance"
           statusText="Favorable Clearance"
-          color="#1A3170"
+          color="#10B981"
         />
       </div>
 

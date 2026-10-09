@@ -660,37 +660,42 @@ export const TodoPage: FC = () => {
         </div>
       )}
 
-      {/* 5 Metric Cards matching screenshot 3 and template */}
+      {/* 5 Metric Cards matching SMRU Pastel Design Tokens */}
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
-        <div className="bg-white border border-[#E4E2DC] rounded-xl p-3 sm:px-4">
-          <div className="text-xs text-[#5B6070]">Overdue</div>
-          <div className="text-[22px] font-semibold text-[#A11C12] mt-0.5">
+        <div className="pastel-card-coral border rounded-2xl p-3.5 sm:px-4 shadow-2xs">
+          <div className="text-xs font-semibold text-rose-900 dark:text-rose-200">Overdue</div>
+          <div className="text-2xl font-bold font-serif text-rose-950 dark:text-white mt-1">
             {summary?.overdueCount ?? 2}
           </div>
+          <div className="text-[10px] text-rose-700 dark:text-rose-300 mt-0.5">Urgent actions</div>
         </div>
-        <div className="bg-white border border-[#E4E2DC] rounded-xl p-3 sm:px-4">
-          <div className="text-xs text-[#5B6070]">Today</div>
-          <div className="text-[22px] font-semibold text-[#16181D] mt-0.5">
+        <div className="pastel-card-blue border rounded-2xl p-3.5 sm:px-4 shadow-2xs">
+          <div className="text-xs font-semibold text-blue-900 dark:text-blue-200">Today</div>
+          <div className="text-2xl font-bold font-serif text-blue-950 dark:text-white mt-1">
             {summary?.todayCount ?? 3}
           </div>
+          <div className="text-[10px] text-blue-700 dark:text-blue-300 mt-0.5">Due today</div>
         </div>
-        <div className="bg-white border border-[#E4E2DC] rounded-xl p-3 sm:px-4">
-          <div className="text-xs text-[#5B6070]">Next 7 days</div>
-          <div className="text-[22px] font-semibold text-[#16181D] mt-0.5">
+        <div className="pastel-card-purple border rounded-2xl p-3.5 sm:px-4 shadow-2xs">
+          <div className="text-xs font-semibold text-purple-900 dark:text-purple-200">Next 7 days</div>
+          <div className="text-2xl font-bold font-serif text-purple-950 dark:text-white mt-1">
             {summary?.upcomingCount ?? 8}
           </div>
+          <div className="text-[10px] text-purple-700 dark:text-purple-300 mt-0.5">Upcoming items</div>
         </div>
-        <div className="bg-white border border-[#E4E2DC] rounded-xl p-3 sm:px-4">
-          <div className="text-xs text-[#5B6070]">High priority</div>
-          <div className="text-[22px] font-semibold text-[#9A3F07] mt-0.5">
+        <div className="pastel-card-amber border rounded-2xl p-3.5 sm:px-4 shadow-2xs">
+          <div className="text-xs font-semibold text-amber-900 dark:text-amber-200">High priority</div>
+          <div className="text-2xl font-bold font-serif text-amber-950 dark:text-white mt-1">
             {summary?.highPriorityCount ?? 3}
           </div>
+          <div className="text-[10px] text-amber-700 dark:text-amber-300 mt-0.5">SLA escalation</div>
         </div>
-        <div className="bg-white border border-[#E4E2DC] rounded-xl p-3 sm:px-4">
-          <div className="text-xs text-[#5B6070]">Done today</div>
-          <div className="text-[22px] font-semibold text-[#1F7A4D] mt-0.5">
+        <div className="pastel-card-emerald border rounded-2xl p-3.5 sm:px-4 shadow-2xs">
+          <div className="text-xs font-semibold text-emerald-900 dark:text-emerald-200">Done today</div>
+          <div className="text-2xl font-bold font-serif text-emerald-950 dark:text-white mt-1">
             {summary?.doneTodayCount ?? 4}
           </div>
+          <div className="text-[10px] text-emerald-700 dark:text-emerald-300 mt-0.5">Completed items</div>
         </div>
       </div>
 

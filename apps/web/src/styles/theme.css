@@ -129,3 +129,49 @@ h1, h2, h3, .font-serif {
   );
   border: 1px dashed #B7791F;
 }
+
+/* SMRU Student ERP Pastel Design Tokens */
+.pastel-card-blue {
+  background-color: #F0F5FF;
+  border-color: #D6E4FF;
+}
+:is([data-theme='dark'], .dark) .pastel-card-blue {
+  background-color: rgba(30, 58, 138, 0.25);
+  border-color: rgba(59, 130, 246, 0.3);
+}
+
+.pastel-card-purple {
+  background-color: #F5F3FF;
+  border-color: #DDD6FE;
+}
+:is([data-theme='dark'], .dark) .pastel-card-purple {
+  background-color: rgba(91, 33, 182, 0.25);
+  border-color: rgba(139, 92, 246, 0.3);
+}
+
+.pastel-card-amber {
+  background-color: #FFFBEB;
+  border-color: #FDE68A;
+}
+:is([data-theme='dark'], .dark) .pastel-card-amber {
+  background-color: rgba(120, 53, 15, 0.25);
+  border-color: rgba(245, 158, 11, 0.3);
+}
+
+.pastel-card-coral {
+  background-color: #FFF1F2;
+  border-color: #FECDD3;
+}
+:is([data-theme='dark'], .dark) .pastel-card-coral {
+  background-color: rgba(136, 19, 55, 0.25);
+  border-color: rgba(244, 63, 94, 0.3);
+}
+
+.pastel-card-emerald {
+  background-color: #ECFDF5;
+  border-color: #A7F3D0;
+}
+:is([data-theme='dark'], .dark) .pastel-card-emerald {
+  background-color: rgba(6, 95, 70, 0.25);
+  border-color: rgba(16, 185, 129, 0.3);
+}
